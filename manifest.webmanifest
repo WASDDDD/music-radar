@@ -1,0 +1,14 @@
+{
+  "name": "中文音乐雷达",
+  "short_name": "音乐雷达",
+  "description": "检索并在线无损播放中文音乐，查看网易云热歌榜日/周/月榜。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090b12",
+  "theme_color": "#090b12",
+  "icons": [
+    {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}
