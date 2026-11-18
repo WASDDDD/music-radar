@@ -2,6 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<!-- 仅允许本页面的音乐播放器脚本，阻止托管平台注入的推广浮层。修改脚本后须重算 SHA-256。 -->
+<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-z0hVt0eGSUuQ4Kc+1e2mEiAhJKWSbcfAOB+HBO8q+fU='; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#090b12">
 <title>音乐雷达 · 中文音乐</title>
@@ -178,7 +180,7 @@ function card(item, i, prefix){
       <div class="artist">${esc(item.artist||'未知歌手')}</div>
     </div>
     <div class="acts">
-      <a class="icon" href="${item.url}" target="_blank" rel="noopener" title="在新页面打开/保存">⬇</a>
+      <button class="icon download" type="button" title="按歌名和歌手下载">⬇</button>
     </div>
   </div>`;
 }
@@ -191,11 +193,54 @@ function render(items, prefix){
   box.innerHTML = items.map((it,i)=>card(it,i,prefix)).join('');
   box.querySelectorAll('.row').forEach(row=>{
     row.onclick = e=>{
-      if (e.target.closest('a')) return;
+      if (e.target.closest('.download')) {
+        e.stopPropagation();
+        downloadSong(items[Number(row.dataset.i)], e.target.closest('.download'));
+        return;
+      }
       play(Number(row.dataset.i));
     };
   });
   if (cur >= 0) markPlaying();
+}
+
+function audioFormat(bytes){
+  const s = String.fromCharCode(...bytes.slice(0,12));
+  if (s.startsWith('fLaC')) return ['flac','audio/flac'];
+  if (s.startsWith('OggS')) return ['ogg','audio/ogg'];
+  if (s.startsWith('RIFF') && s.slice(8,12)==='WAVE') return ['wav','audio/wav'];
+  if (s.startsWith('ID3') || (bytes[0]===255 && (bytes[1]&224)===224)) return ['mp3','audio/mpeg'];
+  if (s.slice(4,8)==='ftyp') return ['m4a','audio/mp4'];
+  if (bytes[0]===26 && bytes[1]===69 && bytes[2]===223 && bytes[3]===163) return ['webm','audio/webm'];
+  throw new Error('服务器没有返回可识别的音频');
+}
+function songFilename(item, ext){
+  const clean = s => String(s).replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').trim().slice(0,90);
+  return clean(item.name||'未知曲目') + ' - ' + clean(item.artist||'未知歌手') + '.' + ext;
+}
+async function downloadSong(item, button){
+  if (!item || button.disabled) return;
+  const ctl = new AbortController();
+  const timer = setTimeout(()=>ctl.abort(),180000);
+  button.disabled = true; button.textContent = '…';
+  toast('正在准备音频，完成后按歌名保存');
+  try {
+    const r = await fetch(item.url,{signal:ctl.signal});
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const data = await r.arrayBuffer();
+    const [ext,mime] = audioFormat(new Uint8Array(data));
+    const filename = songFilename(item,ext);
+    const url = URL.createObjectURL(new Blob([data],{type:mime}));
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),120000);
+    toast('已准备下载：'+filename);
+  } catch(e) {
+    toast('下载失败：'+(e.name==='AbortError'?'请求超时，请重试':e.message));
+  } finally {
+    clearTimeout(timer); button.disabled = false; button.textContent = '⬇';
+  }
 }
 
 function markPlaying(){
