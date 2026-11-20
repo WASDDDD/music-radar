@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- 仅允许本页面的音乐播放器脚本，阻止托管平台注入的推广浮层。修改脚本后须重算 SHA-256。 -->
-<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-IDCN5RFn8uDd1YkA8+6D8GxdPAe7e6DkMmEe4VUEzr4='; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-QiEDJNfs399bkJXqRAzzyIZr3qiqUHNFQFxKcIDgbmM='; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#090b12">
 <title>音乐雷达 · 中文音乐</title>
@@ -251,6 +251,63 @@ header{background:rgba(248,249,251,.74)}
 @media(max-height:740px){.now-page.lyrics-mode .lyrics{inset:92px 0 calc(76px + env(safe-area-inset-bottom));padding-top:13vh;padding-bottom:8vh;scroll-padding-block:20vh}.now-page.lyrics-mode .now-bottom{height:58px}.now-page.lyrics-mode .now-controls{gap:clamp(30px,10vw,48px)}.now-page.lyrics-mode .now-controls button{width:36px;min-width:36px;height:36px}.now-page.lyrics-mode .now-controls .main-play{width:44px;min-width:44px;height:44px}.now-page.lyrics-mode .lyrics p{padding:7px 0;font-size:clamp(19px,5.2vw,28px)}}
 @media(max-width:360px){.now-page.lyrics-mode .lyrics{padding-left:20px;padding-right:20px}.now-page.lyrics-mode .lyric-dock{left:14px;right:14px}}
 @media(prefers-reduced-motion:reduce){.now-head #nowClose:active{transition:none}}
+/* Harmony control pass for the independent preview. */
+.now-head #nowClose,.now-head #nowDownload{display:grid;place-items:center;width:40px;height:40px;min-width:40px;min-height:40px;padding:0;border:1px solid #ffffff18;border-radius:13px;background:#ffffff0b;color:#cbd7e6;font-size:21px;font-weight:400;line-height:1;box-shadow:0 5px 18px #0002;transition:background .2s,border-color .2s,transform .2s}
+.now-head #nowClose{font-size:24px;padding-bottom:3px}.now-head #nowDownload{font-size:20px}
+.now-head #nowClose:hover,.now-head #nowDownload:hover{background:#ffffff16;border-color:#ffffff30}.now-head #nowClose:active,.now-head #nowDownload:active{transform:scale(.94);background:#ffffff20}
+.now-tabs{padding:4px 5px;border:1px solid #ffffff10;border-radius:15px;background:#ffffff07;gap:3px}
+.now-tabs button{height:34px;min-height:34px;min-width:68px;padding:0 13px;border:0!important;border-radius:10px;color:#8897aa;font-size:13px;transition:background .2s,color .2s}
+.now-tabs button.on{background:#ffffff16;color:#f2f6fc;box-shadow:0 2px 12px #0002}
+.track-title-line .heart,.lyrics-head .heart{width:40px;height:40px;min-width:40px!important;min-height:40px;padding:0;border:1px solid #ffffff18;border-radius:13px;background:#ffffff0b;color:#cbd7e6;font-size:25px!important;font-weight:350;line-height:1;box-shadow:0 5px 18px #0002;transition:background .2s,color .2s,transform .2s}
+.track-title-line .heart:active,.lyrics-head .heart:active{transform:scale(.94);background:#ffffff18}.track-title-line .heart.liked,.lyrics-head .heart.liked{color:#ff9caf!important;border-color:#ff9caf55;background:#ff6e8614;text-shadow:0 0 14px #ff547444}
+.now-page:not(.lyrics-mode) .now-bottom{width:calc(100% - 28px);max-width:560px;margin:0 auto;padding:15px 22px calc(17px + env(safe-area-inset-bottom));border:1px solid #ffffff12;border-bottom:0;border-radius:22px 22px 0 0;background:rgba(7,12,22,.76);box-shadow:0 -12px 36px #0004;backdrop-filter:blur(18px) saturate(130%);-webkit-backdrop-filter:blur(18px) saturate(130%)}
+.now-page:not(.lyrics-mode) .now-bottom input{appearance:none;width:100%;height:18px;margin:0;accent-color:#83b5ff;background:transparent;cursor:pointer}
+.now-page:not(.lyrics-mode) .now-bottom input::-webkit-slider-runnable-track{height:4px;border-radius:999px;background:linear-gradient(90deg,#82b4ff 0%,#82b4ff var(--seek-fill,0%),#526071 var(--seek-fill,0%),#526071 100%)}
+.now-page:not(.lyrics-mode) .now-bottom input::-webkit-slider-thumb{appearance:none;width:15px;height:15px;margin-top:-5.5px;border:2px solid #b7d4ff;border-radius:50%;background:#79aefb;box-shadow:0 2px 8px #0006}
+.now-page:not(.lyrics-mode) .now-bottom input::-moz-range-track{height:4px;border:0;border-radius:999px;background:#526071}.now-page:not(.lyrics-mode) .now-bottom input::-moz-range-progress{height:4px;border-radius:999px;background:#82b4ff}.now-page:not(.lyrics-mode) .now-bottom input::-moz-range-thumb{width:12px;height:12px;border:2px solid #b7d4ff;border-radius:50%;background:#79aefb}
+.now-page:not(.lyrics-mode) .now-time{margin-top:-1px;color:#93a4ba;font-variant-numeric:tabular-nums}.now-page:not(.lyrics-mode) .now-controls{justify-content:center;gap:24px;margin-top:10px}.now-page:not(.lyrics-mode) .now-controls button{display:grid;place-items:center;width:48px;min-width:48px;height:48px;min-height:48px;padding:0;border:1px solid #ffffff14;border-radius:14px;background:#ffffff09;color:#d9e4f1;font-size:19px;box-shadow:0 4px 14px #0002;transition:background .2s,transform .2s}.now-page:not(.lyrics-mode) .now-controls button:active{transform:scale(.94);background:#ffffff18}.now-page:not(.lyrics-mode) .now-controls .main-play{width:58px;min-width:58px;height:58px;min-height:58px;border:0;border-radius:50%;background:#e8f1ff;color:#0b1524;font-size:23px;box-shadow:0 7px 22px #70aaff44}
+@media(max-width:380px){.now-page:not(.lyrics-mode) .now-bottom{width:calc(100% - 18px);padding-left:16px;padding-right:16px}.now-page:not(.lyrics-mode) .now-controls{gap:17px}}
+/* Text-based top navigation preview. */
+.now-head #nowClose,.now-head #nowDownload{display:flex;align-items:center;justify-content:center;width:64px;height:40px;min-width:64px;min-height:40px;padding:0;border:0;border-radius:10px;background:transparent;color:#aebbd0;font-size:14px;font-weight:500;letter-spacing:0;line-height:1;box-shadow:none;opacity:.92;transition:background .2s,color .2s,transform .2s}
+.now-head #nowClose{padding-right:4px}.now-head #nowDownload{padding-left:4px}
+.now-head #nowClose:hover,.now-head #nowDownload:hover{background:#ffffff0c;color:#eef4fc}.now-head #nowClose:active,.now-head #nowDownload:active{transform:scale(.96);background:#ffffff14;color:#fff}
+.now-tabs{padding:0;border:0;border-radius:0;background:transparent;gap:20px}
+.now-tabs button{height:40px;min-height:40px;min-width:48px;padding:0 3px;border:0!important;border-radius:0;color:#8190a5;font-size:15px;font-weight:500;transition:color .2s,opacity .2s;position:relative}
+.now-tabs button::after{content:"";position:absolute;left:8px;right:8px;bottom:3px;height:2px;border-radius:2px;background:#82b4ff;transform:scaleX(0);transition:transform .2s}
+.now-tabs button.on{background:transparent;color:#f1f5fb;box-shadow:none}
+.now-tabs button.on::after{transform:scaleX(1)}
+/* Home scroll transitions and compact player bubble preview. */
+header{max-height:none;overflow:visible;transform:translateY(0);opacity:1;transition:transform .34s cubic-bezier(.2,.75,.25,1),opacity .24s ease,border-color .25s ease;will-change:transform,opacity}
+body.home-chrome-hidden header{border-bottom-color:transparent;transform:translateY(calc(-100% - 2px));opacity:0;pointer-events:none}
+.player{transform-origin:calc(100% - 38px) calc(100% - 24px);transition:left .38s cubic-bezier(.2,.75,.25,1),right .38s cubic-bezier(.2,.75,.25,1),bottom .38s cubic-bezier(.2,.75,.25,1),width .38s cubic-bezier(.2,.75,.25,1),height .38s cubic-bezier(.2,.75,.25,1),padding .3s ease,border-radius .3s ease,background .28s ease,box-shadow .3s ease;will-change:transform,width,height,border-radius}
+.player.is-bubble{left:auto;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));width:66px;height:66px;padding:4px;border:1px solid #ffffff2a;border-radius:50%;background:rgba(20,29,44,.76);box-shadow:0 8px 28px #0007;overflow:hidden;cursor:pointer;transform:none;backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%)}
+.player.is-bubble .pl-top{width:100%;height:100%;gap:0}.player.is-bubble .pl-cover{position:absolute;inset:3px;width:calc(100% - 6px);height:calc(100% - 6px);border-radius:50%;object-fit:cover;opacity:.84}
+.player.is-bubble .pl-meta{flex:0 1 0;width:0;max-width:0;height:0;min-width:0;opacity:0;overflow:hidden;transform:translateX(8px);pointer-events:none;transition:flex .34s ease,width .34s ease,max-width .34s ease,opacity .2s ease,transform .34s ease}
+.player.is-bubble .bar,.player.is-bubble .times{height:0;max-height:0;margin:0;overflow:hidden;opacity:0;transform:translateY(8px);pointer-events:none;transition:max-height .3s ease,height .3s ease,margin .3s ease,opacity .2s ease,transform .3s ease}
+.player.is-bubble .play{position:absolute;left:50%;top:50%;width:34px;height:34px;transform:translate(-50%,-50%);border:1px solid #ffffff45;background:#101a2db8;color:#fff;font-size:14px;box-shadow:0 2px 9px #0006;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.player.is-bubble .play:active{transform:translate(-50%,-50%) scale(.9)}
+.player.is-bubble::after{content:"";position:absolute;inset:1px;border:1px solid #ffffff17;border-radius:inherit;pointer-events:none}
+#list .row{animation:row-arrive .32s both;animation-delay:calc(min(var(--row-index,0),12)*22ms)}
+#list .row:nth-child(1){--row-index:0}#list .row:nth-child(2){--row-index:1}#list .row:nth-child(3){--row-index:2}#list .row:nth-child(4){--row-index:3}#list .row:nth-child(5){--row-index:4}#list .row:nth-child(6){--row-index:5}#list .row:nth-child(7){--row-index:6}#list .row:nth-child(8){--row-index:7}#list .row:nth-child(9){--row-index:8}#list .row:nth-child(10){--row-index:9}
+@keyframes row-arrive{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.library,.playlist-tools,.batch-tools,.hint{transition:opacity .24s ease,transform .3s ease}
+.tab,.icon,.library button,.player button,.now-head button,.now-tabs button,.heart{transition-property:color,background,border-color,box-shadow,opacity,transform;transition-duration:.22s}
+.sheet,.library-dialog{transition:opacity .24s ease,transform .28s cubic-bezier(.2,.75,.25,1)}
+.now-page.on{animation:player-page-in .32s cubic-bezier(.2,.75,.25,1) both}
+@keyframes player-page-in{from{opacity:0}to{opacity:1}}
+/* Continuous cover-to-lyrics transport transition. */
+.now-pages{scroll-behavior:smooth}
+.now-page:not(.lyrics-mode) .now-bottom{position:absolute;left:50%;right:auto;bottom:env(safe-area-inset-bottom);width:calc(100% - 28px);height:146px;max-width:560px;margin:0;padding:15px 22px calc(17px + env(safe-area-inset-bottom));display:flex;flex-direction:column;justify-content:flex-end;transform:translateX(-50%);transition:left .42s cubic-bezier(.2,.75,.25,1),width .42s cubic-bezier(.2,.75,.25,1),height .42s cubic-bezier(.2,.75,.25,1),padding .38s ease,border-radius .38s ease,background .34s ease,box-shadow .38s ease,opacity .3s ease}
+.now-page.lyrics-mode .now-bottom{position:absolute;left:50%;right:auto;bottom:env(safe-area-inset-bottom);width:100%;height:64px;max-width:600px;margin:0;padding:4px 28px 8px;display:flex;flex-direction:column;justify-content:flex-end;transform:translateX(-50%);transition:left .42s cubic-bezier(.2,.75,.25,1),width .42s cubic-bezier(.2,.75,.25,1),height .42s cubic-bezier(.2,.75,.25,1),padding .38s ease,border-radius .38s ease,background .34s ease,box-shadow .38s ease,opacity .3s ease}
+.now-page:not(.lyrics-mode) .now-bottom input,.now-page.lyrics-mode .now-bottom input{display:block!important;flex:none;max-height:24px;height:18px;margin:0;opacity:1;transform:translateY(0);transition:max-height .34s ease,height .34s ease,opacity .2s ease,transform .34s ease,margin .34s ease}
+.now-page:not(.lyrics-mode) .now-bottom .now-time,.now-page.lyrics-mode .now-bottom .now-time{display:flex!important;flex:none;max-height:24px;height:auto;opacity:1;overflow:hidden;transform:translateY(0);transition:max-height .34s ease,height .34s ease,opacity .2s ease,transform .34s ease,margin .34s ease}
+.now-controls{transition:gap .4s cubic-bezier(.2,.75,.25,1),margin .38s ease,transform .4s cubic-bezier(.2,.75,.25,1)}
+.now-page.lyrics-mode .now-bottom input,.now-page.lyrics-mode .now-bottom .now-time{max-height:0!important;height:0!important;margin:0!important;padding:0;opacity:0;transform:translateY(8px);pointer-events:none}
+.now-page.lyrics-mode .now-controls{transform:translateY(0)}
+/* Reserve and animate the transport footprint while horizontal pages swap. */
+.now-page:not(.lyrics-mode) .now-pages{margin-bottom:146px;transition:margin-bottom .42s cubic-bezier(.2,.75,.25,1)}
+.now-page.lyrics-mode .now-pages{margin-bottom:64px;transition:margin-bottom .42s cubic-bezier(.2,.75,.25,1)}
+@media(prefers-reduced-motion:reduce){.now-pages{transition:none!important}}
 </style>
 </head>
 <body>
@@ -307,7 +364,7 @@ header{background:rgba(248,249,251,.74)}
 
 <section class="now-page" id="nowPage" role="dialog" aria-modal="true" aria-label="歌曲播放页" aria-hidden="true">
   <div class="now-ambient" aria-hidden="true"><img id="nowAmbientImage" alt=""></div>
-  <div class="now-head"><button id="nowClose" aria-label="收起播放页">⌄</button><div class="now-tabs"><button id="coverTab" class="on">封面</button><button id="lyricsTab">歌词</button></div><button id="nowDownload" aria-label="下载当前歌曲">↓</button></div>
+  <div class="now-head"><button id="nowClose" aria-label="收起播放页">收起</button><div class="now-tabs"><button id="coverTab" class="on">封面</button><button id="lyricsTab">歌词</button></div><button id="nowDownload" aria-label="下载当前歌曲">下载</button></div>
   <div class="now-pages" id="nowPages">
     <div class="now-panel now-art">
       <div class="record-stage"><div class="record"><img id="nowCover" alt="歌曲封面"></div><span class="tonearm" aria-hidden="true"><i></i><b></b></span></div>
@@ -954,6 +1011,7 @@ function syncNow(){
   const duration=Number.isFinite(audio.duration)?audio.duration:0;
   el('nowCur').textContent=fmt(audio.currentTime); el('nowDur').textContent=fmt(duration);
   el('nowSeek').value=duration?Math.round(audio.currentTime/duration*1000):0;
+  el('nowSeek').style.setProperty('--seek-fill',(duration?audio.currentTime/duration*100:0).toFixed(2)+'%');
   el('nowSeek').disabled=!duration;
   el('nowPlay').textContent=audio.paused?'▶':'❚❚';
   el('lyricDockPlay').textContent=audio.paused?'▶':'❚❚';
@@ -1065,6 +1123,28 @@ srcBar.querySelectorAll('.tab').forEach(b=>{
 });
 $('header').appendChild(srcBar);
 
+let homeLastScroll=window.scrollY, homeScrollFrame=0, homeChromeHidden=false;
+function setHomeChrome(hidden){
+  const player=document.querySelector('.player');
+  if (document.body.style.overflow==='hidden' || hidden===homeChromeHidden) return;
+  homeChromeHidden=hidden;
+  document.body.classList.toggle('home-chrome-hidden',hidden);
+  player?.classList.toggle('is-bubble',hidden);
+}
+function updateHomeChrome(){
+  homeScrollFrame=0;
+  const y=window.scrollY, delta=y-homeLastScroll;
+  if (y<=24) setHomeChrome(false);
+  else if (delta>10 && y>56) setHomeChrome(true);
+  else if (delta<-12) setHomeChrome(false);
+  homeLastScroll=y;
+}
+window.addEventListener('scroll',()=>{if(!homeScrollFrame)homeScrollFrame=requestAnimationFrame(updateHomeChrome)},{passive:true});
+document.querySelector('.player').addEventListener('click',event=>{
+  const player=document.querySelector('.player');
+  if (!player.classList.contains('is-bubble') || event.target.closest('#play')) return;
+  openNow();
+});
 paintTabs();
 const resumeAtStart=getResume();
 if(resumeAtStart)showPersonal(resumeAtStart.playlist.id);else loadChart();
