@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- 仅允许本页面的音乐播放器脚本，阻止托管平台注入的推广浮层。修改脚本后须重算 SHA-256。 -->
-<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-BAEg0wKcEv7PjsHmnVZ/QGpAhpAw/xkT8s/8G1XMjtw='; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-IDCN5RFn8uDd1YkA8+6D8GxdPAe7e6DkMmEe4VUEzr4='; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#090b12">
 <title>音乐雷达 · 中文音乐</title>
@@ -231,6 +231,22 @@ header{background:rgba(248,249,251,.74)}
 @media(max-height:700px){.record-stage{width:min(64vw,40vh,300px)}.now-art{padding-top:10px}.now-title{font-size:23px}.lyrics{inset:92px 0 78px;padding-top:28vh}}
 @media(min-width:720px){.record-stage{width:min(36vw,45vh,390px)}.now-art{padding-top:clamp(20px,6vh,68px)}.lyrics{padding-left:calc((100% - 620px)/2);padding-right:calc((100% - 620px)/2)}}
 @media(prefers-reduced-motion:reduce){.now-page.playing .tonearm,.lyrics p.active::before{animation:none}.lyrics{scroll-behavior:auto}}
+/* Lyric mode reserves its own viewport; transport controls stay on the cover page. */
+.now-head #nowClose{width:38px;height:38px;min-width:38px;min-height:38px;border:0;border-radius:50%;background:transparent;color:#d7dfeb;font-size:25px;font-weight:300;line-height:1;outline:none;box-shadow:none;opacity:.82}
+.now-head #nowClose:active{background:#ffffff16;opacity:1}
+.now-head #nowClose:focus-visible{outline:2px solid #82b5f5;outline-offset:2px}
+.now-page.lyrics-mode .now-bottom{display:none}
+.now-page.lyrics-mode .now-pages{min-height:0;flex:1}
+.now-page.lyrics-mode .lyrics-panel{padding-bottom:0}
+.now-page.lyrics-mode .lyrics{inset:104px 0 calc(92px + env(safe-area-inset-bottom));padding:19vh 26px 17vh;scroll-padding-block:32vh;mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 88%,transparent 100%);-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 88%,transparent 100%)}
+.now-page.lyrics-mode .lyric-dock{left:20px;right:20px;bottom:8px;min-height:58px;padding:9px 10px 9px 13px;background:rgba(21,32,48,.78);border-color:#ffffff20;box-shadow:0 8px 24px #0005}
+.now-page.lyrics-mode .lyrics p{padding:9px 0;font-size:clamp(21px,5.9vw,32px);line-height:1.24}
+.now-page.lyrics-mode .lyrics p.active{transform:scale(1.015)}
+.now-page.lyrics-mode .lyrics-head{padding-left:20px;padding-right:20px}
+.now-page.lyrics-mode .lyrics-meta{padding-left:22px;padding-right:22px}
+@media(max-height:740px){.now-page.lyrics-mode .lyrics{inset:92px 0 calc(88px + env(safe-area-inset-bottom));padding-top:13vh;padding-bottom:13vh}.now-page.lyrics-mode .lyrics p{padding:7px 0;font-size:clamp(19px,5.2vw,28px)}}
+@media(max-width:360px){.now-page.lyrics-mode .lyrics{padding-left:20px;padding-right:20px}.now-page.lyrics-mode .lyric-dock{left:14px;right:14px}}
+@media(prefers-reduced-motion:reduce){.now-head #nowClose:active{transition:none}}
 </style>
 </head>
 <body>
@@ -287,7 +303,7 @@ header{background:rgba(248,249,251,.74)}
 
 <section class="now-page" id="nowPage" role="dialog" aria-modal="true" aria-label="歌曲播放页" aria-hidden="true">
   <div class="now-ambient" aria-hidden="true"><img id="nowAmbientImage" alt=""></div>
-  <div class="now-head"><button id="nowClose" aria-label="收起播放页">⌄</button><div class="now-tabs"><button id="coverTab" class="on">封面</button><button id="lyricsTab">歌词</button></div><button id="nowDownload" aria-label="下载当前歌曲">↗</button></div>
+  <div class="now-head"><button id="nowClose" aria-label="收起播放页">⌄</button><div class="now-tabs"><button id="coverTab" class="on">封面</button><button id="lyricsTab">歌词</button></div><button id="nowDownload" aria-label="下载当前歌曲">↓</button></div>
   <div class="now-pages" id="nowPages">
     <div class="now-panel now-art">
       <div class="record-stage"><div class="record"><img id="nowCover" alt="歌曲封面"></div><span class="tonearm" aria-hidden="true"><i></i><b></b></span></div>
@@ -802,7 +818,7 @@ function openNow(){
   document.body.style.overflow = 'hidden'; el('nowClose').focus(); syncNow();
 }
 function closeNow(){
-  el('nowPage').classList.remove('on'); el('nowPage').setAttribute('aria-hidden','true');
+  el('nowPage').classList.remove('on','lyrics-mode'); el('nowPage').setAttribute('aria-hidden','true');
   document.body.style.overflow = ''; el('sheet').classList.remove('on');
   if (previousFocus && previousFocus.isConnected) previousFocus.focus();
 }
@@ -913,7 +929,11 @@ function syncLyrics(force=false){
   }
   if ((changed || force) && index>=0 && Date.now()>lyricTouchUntil && el('nowPage').classList.contains('on') && el('nowPages').scrollLeft>el('nowPages').clientWidth/2){
     const row=rows[index];
-    if(row) el('lyrics').scrollTo({top:row.offsetTop-el('lyrics').offsetTop-el('lyrics').clientHeight*.46+row.clientHeight/2,behavior:force?'auto':'smooth'});
+    if(row){
+      const target=row.offsetTop-el('lyrics').clientHeight*.43+row.clientHeight/2;
+      const max=Math.max(0,el('lyrics').scrollHeight-el('lyrics').clientHeight);
+      el('lyrics').scrollTo({top:Math.max(0,Math.min(max,target)),behavior:force?'auto':'smooth'});
+    }
   }
 }
 function lyricFrame(){
@@ -990,7 +1010,9 @@ function showPanel(index){ el('nowPages').scrollTo({left:el('nowPages').clientWi
 el('coverTab').onclick=()=>showPanel(0); el('lyricsTab').onclick=()=>showPanel(1);
 el('nowPages').addEventListener('scroll',()=>{
   const lyrics=el('nowPages').scrollLeft>el('nowPages').clientWidth/2;
-  el('coverTab').classList.toggle('on',!lyrics); el('lyricsTab').classList.toggle('on',lyrics); syncLyrics(true);
+  el('coverTab').classList.toggle('on',!lyrics); el('lyricsTab').classList.toggle('on',lyrics);
+  el('nowPage').classList.toggle('lyrics-mode',lyrics);
+  syncLyrics(true);
 },{passive:true});
 el('lyrics').addEventListener('touchstart',()=>{lyricTouchUntil=Date.now()+4000;},{passive:true});
 el('lyrics').addEventListener('wheel',()=>{lyricTouchUntil=Date.now()+4000;},{passive:true});
