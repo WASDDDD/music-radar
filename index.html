@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- 仅允许本页面的音乐播放器脚本，阻止托管平台注入的推广浮层。修改脚本后须重算 SHA-256。 -->
-<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-ixMDFknpy09dsw+9nBFAk3Mi4e4VIDR3MHGIW91syQY=' 'sha256-QiEDJNfs399bkJXqRAzzyIZr3qiqUHNFQFxKcIDgbmM=' 'sha256-GkPbbI8GtpPpy8T468LC4hvGZsvI1wbVzh8561imEI4='; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-ixMDFknpy09dsw+9nBFAk3Mi4e4VIDR3MHGIW91syQY=' 'sha256-ZOKvsgo0AezxcvbBaO7LCCnExwAF6Gj6aq9Td/ciq3A=' 'sha256-GkPbbI8GtpPpy8T468LC4hvGZsvI1wbVzh8561imEI4='; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#090b12">
 <title>音乐雷达 · 中文音乐</title>
@@ -733,6 +733,42 @@ body.home-chrome-hidden header{border-bottom-color:transparent;transform:transla
   .appearance-toggle { transition: none; }
 }
 
+/* Readable sticky header: blur the actual backdrop on the header itself. */
+:root[data-radar-skin="glass"] { --glass-header: #f1f7fc; }
+:root[data-radar-skin="glass"][data-lg-theme="dark"] { --glass-header: #152439; }
+[data-radar-skin="glass"] body > header {
+  background: var(--glass-header);
+  border-radius: 0 0 28px 28px;
+}
+[data-radar-skin="glass"] body > header::before {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  :root[data-radar-skin="glass"] { --glass-header: #f1f7fcf5; }
+  :root[data-radar-skin="glass"][data-lg-theme="dark"] { --glass-header: #152439f5; }
+  [data-radar-skin="glass"] body > header {
+    -webkit-backdrop-filter: blur(24px) saturate(1.1);
+    backdrop-filter: blur(24px) saturate(1.1);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-radar-skin="glass"] { --glass-header: #f1f7fc; }
+  :root[data-radar-skin="glass"][data-lg-theme="dark"] { --glass-header: #152439; }
+  [data-radar-skin="glass"] body > header {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+.search-pager { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 14px 0; color: var(--dim); font-size: 13px; }
+.search-pager[hidden] { display: none; }
+.search-pager button { min-height: 44px; padding: 10px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--acc); font-weight: 600; cursor: pointer; }
+.search-pager button:disabled { opacity: .65; cursor: wait; }
+.search-pager button:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+[data-radar-skin="glass"] .search-pager button { background: var(--glass-action); border-color: var(--glass-edge); }
+
 /* Keep transport controls directly on the album backdrop in both appearances. */
 .now-page .now-bottom {
   background: transparent !important;
@@ -743,6 +779,9 @@ body.home-chrome-hidden header{border-bottom-color:transparent;transform:transla
   backdrop-filter: none !important;
 }
 
+/* Keep upstream playback failures visible, including in lyrics mode. */
+.playback-notice{position:absolute;z-index:8;left:50%;bottom:calc(152px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(90%,500px);padding:12px 14px;border:1px solid #ffffff26;border-radius:16px;background:#152034f5;color:#f2f5fc;font-size:13px;line-height:1.6;box-shadow:0 8px 28px #0004}
+.playback-notice[hidden]{display:none}.playback-notice p{margin:0}.playback-notice .recovery-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.playback-notice button{border:1px solid #ffffff33;border-radius:10px;padding:7px 10px;background:#ffffff12;color:inherit;font-size:12px}.playback-notice button[hidden]{display:none}.now-page.lyrics-mode .playback-notice{bottom:calc(78px + env(safe-area-inset-bottom))}
 </style>
 </head>
 <body>
@@ -751,7 +790,7 @@ body.home-chrome-hidden header{border-bottom-color:transparent;transform:transla
     <div class="logo">🎵</div>
     <div>
       <h1>音乐雷达</h1>
-      <div class="sub">网易云 / QQ 音乐 / 酷狗 · 无损直连</div>
+      <div class="sub">网易云 / QQ 音乐 / 酷狗 · 完整音频核验</div>
     </div>
     <button class="appearance-toggle" type="button" aria-label="液态玻璃外观" aria-pressed="false" data-appearance><span class="appearance-icon" aria-hidden="true">◈</span><span data-appearance-label>MIUIX</span></button>
   </div>
@@ -778,7 +817,9 @@ body.home-chrome-hidden header{border-bottom-color:transparent;transform:transla
   </details>
   <div class="batch-tools" id="batchTools"><label><input type="checkbox" id="selectAll"> 全选</label><button id="addSelected" type="button" disabled>加入歌单</button><button id="batchDownload" type="button">下载所选（0）</button><button id="batchStop" type="button" hidden>停止下载</button><div id="batchStatus" role="status"></div></div>
   <div class="hint" id="hint">正在加载榜单…</div>
+  <div class="search-pager" id="searchPagerTop" hidden><button id="searchMoreTop" type="button">加载更多歌曲</button></div>
   <div id="list"></div>
+  <div class="search-pager" id="searchPager" hidden><span id="searchPageStatus" role="status" aria-live="polite"></span><button id="searchMore" type="button">加载更多歌曲</button></div>
   <footer>
     数据来自公开解析接口，仅供个人试听学习 · 请支持正版<br>
     音频与封面直连第三方 CDN，本页面不存储任何文件
@@ -804,7 +845,7 @@ body.home-chrome-hidden header{border-bottom-color:transparent;transform:transla
   <div class="now-pages" id="nowPages">
     <div class="now-panel now-art">
       <div class="record-stage"><div class="record"><img id="nowCover" alt="歌曲封面"></div><span class="tonearm" aria-hidden="true"><i></i><b></b></span></div>
-      <div class="track-info"><div class="track-title-line"><div class="now-title" id="nowTitle"></div><button class="heart" type="button" aria-label="喜欢这首歌">♡</button></div><div class="now-artist" id="nowArtist"></div><div class="track-badges"><span>HQ</span><span>无损</span><span id="nowLyricBadge">歌词</span></div><div class="swipe-note">向左滑动进入实时歌词 →</div></div>
+      <div class="track-info"><div class="track-title-line"><div class="now-title" id="nowTitle"></div><button class="heart" type="button" aria-label="喜欢这首歌">♡</button></div><div class="now-artist" id="nowArtist"></div><div class="track-badges"><span>实际音质</span><span id="verifiedPlaybackLabel">待核验</span><span id="nowLyricBadge">歌词</span></div><div class="swipe-note">向左滑动进入实时歌词 →</div></div>
     </div>
     <div class="now-panel lyrics-panel">
       <div class="lyrics-head"><img id="lyricsCover" alt="歌曲封面"><div><strong id="lyricsTitle"></strong><small id="lyricsArtist"></small></div><button class="heart" type="button" aria-label="喜欢这首歌">♡</button></div>
@@ -813,6 +854,7 @@ body.home-chrome-hidden header{border-bottom-color:transparent;transform:transla
       <div class="lyric-dock"><span class="lyric-dock-icon">词</span><span id="lyricDockText">实时歌词</span><button id="lyricMode" type="button" aria-label="关闭歌词动效">×</button><button id="lyricDockPlay" type="button" aria-label="播放">▶</button></div>
     </div>
   </div>
+  <div class="playback-notice" id="playbackNotice" role="status" aria-live="polite" hidden><p id="playbackMessage"></p><div class="recovery-actions" id="playbackActions" hidden><button id="retryPlayback" type="button">重试当前音源</button><button id="findNetease" type="button">去网易云查找同名歌曲</button></div></div>
   <div class="now-bottom"><input id="nowSeek" type="range" min="0" max="1000" value="0" aria-label="播放进度"><div class="now-time"><span id="nowCur">0:00</span><span id="nowDur">0:00</span></div><div class="now-controls"><button id="nowPrev" aria-label="上一首">❮❮</button><button id="nowPlay" class="main-play" aria-label="播放">▶</button><button id="nowNext" aria-label="下一首">❯❯</button></div></div>
 </section>
 <div class="sheet" id="sheet">
@@ -869,9 +911,9 @@ function fmt(sec){
 }
 
 // 多镜像 + 超时
-async function api(params, timeout = 12000){
+async function api(params, timeout = 12000, options = {}){
   let lastErr;
-  for (const host of HOSTS){
+  for (const host of options.host ? [options.host] : HOSTS){
     const ctl = new AbortController();
     const timer = setTimeout(()=>ctl.abort(), timeout);
     try{
@@ -879,7 +921,8 @@ async function api(params, timeout = 12000){
       clearTimeout(timer);
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const data = await r.json();
-      if (!Array.isArray(data) || !data.length) throw new Error('empty');
+      if (!Array.isArray(data)) throw new Error('接口返回格式错误');
+      if (!data.length && !options.allowEmpty) throw new Error('empty');
       return {data, host};
     }catch(e){ lastErr = e; clearTimeout(timer); }
   }
@@ -887,6 +930,26 @@ async function api(params, timeout = 12000){
 }
 
 let playlistView=false, viewRequest=0;
+let searchState=null;
+function resetSearch(){
+  searchState=null;
+  el('searchPagerTop').hidden=true;
+  el('searchPager').hidden=true;
+}
+function paintSearchPager(state){
+  if(searchState!==state||state.request!==viewRequest)return;
+  el('searchPagerTop').hidden=state.done;
+  el('searchPager').hidden=false;
+  for(const id of ['searchMoreTop','searchMore']){
+    const button=el(id);
+    button.hidden=state.done;
+    button.disabled=state.loading;
+    button.textContent=state.loading?'正在加载…':state.error?'重试加载更多':'加载更多歌曲';
+  }
+  el('searchPageStatus').textContent=state.error||
+    (state.done?`已显示 ${state.items.length} 首 · 当前音乐源没有返回更多结果`:
+      `已显示 ${state.items.length} 首 · 可继续加载`);
+}
 const selectedSongs=new Set();
 let batchRunning=false, batchCancelled=false, batchController=null;
 let savedPlaylists=[];
@@ -943,7 +1006,7 @@ function saveLibrary(lists){
 function showPersonal(id){
   const playlist=getPersonal(id);
   if(!playlist)return;
-  ++viewRequest;activePersonalId=id;playlistView=true;
+  ++viewRequest;resetSearch();activePersonalId=id;playlistView=true;
   el('hint').textContent=`${playlist.name} · ${playlist.tracks.length} 首`;
   render(playlist.tracks,false);paintLibrary();
 }
@@ -1073,7 +1136,7 @@ async function readFullPlaylist(ref,onProgress,isCurrent){
   return null;
 }
 async function importPlaylist(ref){
-  const request=++viewRequest;leavePersonal();playlistView=false;el('batchTools').classList.remove('on');
+  const request=++viewRequest;resetSearch();leavePersonal();playlistView=false;el('batchTools').classList.remove('on');
   el('hint').textContent='正在读取完整歌单 '+ref.id+'…';el('list').innerHTML='';
   let loaded=[],expected=0;
   try{
@@ -1143,15 +1206,18 @@ function card(item, i, prefix){
 }
 function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-function render(items, prefix){
+function render(items, prefix, append=false){
+  const start=append?list.length:0;
   list = items;
   cur = typeof playingItem !== 'undefined' ? items.indexOf(playingItem) : -1;
-  selectedSongs.clear(); updateSelection();
+  if(!append){selectedSongs.clear(); updateSelection();}
   el('batchTools').classList.toggle('on',playlistView);
   const box = el('list');
   if (!items.length){ box.innerHTML = '<div class="empty">没有结果</div>'; return; }
-  box.innerHTML = items.map((it,i)=>card(it,i,prefix)).join('');
+  if(append)box.insertAdjacentHTML('beforeend',items.slice(start).map((it,i)=>card(it,i+start,prefix)).join(''));
+  else box.innerHTML = items.map((it,i)=>card(it,i,prefix)).join('');
   box.querySelectorAll('.row').forEach(row=>{
+    if(append&&Number(row.dataset.i)<start)return;
     row.onclick = e=>{
       if (e.target.closest('.song-select')) {
         const i=Number(row.dataset.i);
@@ -1216,7 +1282,9 @@ async function doDownload(item, button, quality, signal){
   if (button){ button.disabled = true; button.textContent = '…'; }
   toast(quality === 'flac' ? '正在获取无损音频，文件较大请稍候…' : '正在准备音频，完成后按歌名保存');
   try {
-    const r = await fetch(withQuality(item.url, quality), {signal: ctl.signal});
+    let downloadUrl=withQuality(item.url,quality);
+    if(['netease','tencent','kugou'].includes(playbackPlatform(item))){const result=await resolvePlayback(item,ctl.signal);downloadUrl=result.url;}
+    const r = await fetch(downloadUrl, {signal: ctl.signal});
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.arrayBuffer();
     if (!data.byteLength) throw new Error('接口返回空文件，可能该曲暂无此音质');
@@ -1257,7 +1325,7 @@ function markPlaying(){
 }
 
 async function loadChart(){
-  const request=++viewRequest;leavePersonal();playlistView=false;el('batchTools').classList.remove('on');
+  const request=++viewRequest;resetSearch();leavePersonal();playlistView=false;el('batchTools').classList.remove('on');
   const chart = CHARTS.find(c=>c.id===activeTab);
   el('hint').textContent = '正在加载「' + chart.name + '」…';
   el('list').innerHTML = '';
@@ -1288,22 +1356,52 @@ async function loadChart(){
 async function doSearch(){
   const kw = el('q').value.trim();
   if (!kw){ loadChart(); return; }
-  const request=++viewRequest;leavePersonal();playlistView=false;el('batchTools').classList.remove('on');
+  const request=++viewRequest;resetSearch();leavePersonal();playlistView=false;el('batchTools').classList.remove('on');
   el('hint').textContent = '正在搜索「' + kw + '」…';
   el('list').innerHTML = '';
   const src = SRCS.find(s=>s.key===srcPick) || SRCS[0];
+  const state={request,keyword:kw,source:src,page:0,size:src.key==='kugou'?30:40,
+    items:[],host:null,loading:false,done:false,error:''};
+  searchState=state;
+  await loadSearchPage(state);
+}
+function searchSongKey(item,source){
+  const track=savedTrack(item,source);
+  return track?trackKey(track):JSON.stringify([source,item.id||item.url||'',item.name,item.artist]);
+}
+async function loadSearchPage(state=searchState){
+  if(!state||searchState!==state||state.request!==viewRequest||state.loading||state.done)return;
+  state.loading=true;state.error='';paintSearchPager(state);
+  const page=state.page+1;
   try{
-    const {data} = await api(`server=${src.key}&type=search&id=${encodeURIComponent(kw)}&limit=40`);
-    if(request!==viewRequest)return;
-    curServer = src.key;
-    el('hint').textContent = `${src.label} · 「${kw}」· ${data.length} 条结果`;
-    render(data, false);
+    const params=new URLSearchParams({server:state.source.key,type:'search',id:state.keyword,
+      limit:String(state.size),page:String(page)});
+    const {data,host}=await api(params.toString(),12000,{allowEmpty:true,host:state.host});
+    if(searchState!==state||state.request!==viewRequest)return;
+    const seen=new Set(state.items.map(it=>searchSongKey(it,state.source.key)));
+    const added=[];
+    for(const item of data){
+      const key=searchSongKey(item,state.source.key);
+      if(!seen.has(key)){seen.add(key);added.push(item);}
+    }
+    const append=state.items.length>0;
+    state.items=[...state.items,...added];state.page=page;state.host=host;
+    state.done=data.length===0||added.length===0;
+    curServer=state.source.key;
+    render(state.items,false,append);
+    if(playingItem&&state.items.includes(playingItem)&&playingQueue.length&&
+       playingQueue.every((it,i)=>it===state.items[i]))playingQueue=state.items.slice();
+    el('hint').textContent=`${state.source.label} · 「${state.keyword}」· 已显示 ${state.items.length} 首${state.done?'':' · 可继续加载'}`;
   }catch(e){
-    if(request!==viewRequest)return;
-    curServer = 'netease';
-    el('hint').textContent = '搜索失败：' + (e.message||'网络问题');
+    if(searchState!==state||state.request!==viewRequest)return;
+    state.error='加载失败，可点击重试：'+(e.name==='AbortError'?'请求超时':e.message||'网络问题');
+    if(!state.page)el('hint').textContent='搜索失败：'+(e.message||'网络问题');
+  }finally{
+    if(searchState===state&&state.request===viewRequest){state.loading=false;paintSearchPager(state);}
   }
 }
+el('searchMoreTop').onclick=()=>loadSearchPage();
+el('searchMore').onclick=()=>loadSearchPage();
 
 let playingItem = null, playingQueue = [], playingIndex = -1;
 let lyricLines = [], lyricIndex = -1, lyricRequest = 0, lyricController = null, lyricTouchUntil = 0, lyricRaf = 0;
@@ -1470,7 +1568,57 @@ function persistBookmark(){
 let bookmarkTimer;
 audio.addEventListener('timeupdate',()=>{clearTimeout(bookmarkTimer);bookmarkTimer=setTimeout(persistBookmark,1200);});
 for(const event of ['pause','ended','pagehide','beforeunload'])window.addEventListener(event,persistBookmark);
-function startTrack(it,index,seconds=0){
+let playbackRequest=0,playbackController=null,playbackLoading=false,playbackFailed=false,playbackSeek=null,verifiedPlayback=null;
+function playbackPlatform(item){
+  try{return new URL(item.url).searchParams.get('server')||item.server||'';}catch{return item.server||'';}
+}
+function playbackNotice(message='',recover=false){
+  el('playbackMessage').textContent=message;el('playbackNotice').hidden=!message;
+  el('playbackActions').hidden=!recover;
+  el('findNetease').hidden=!['tencent','kugou'].includes(playbackPlatform(playingItem||{}));
+}
+async function probePlaybackUrl(url,signal){
+  const ctl=new AbortController(),abort=()=>ctl.abort();
+  signal.addEventListener('abort',abort,{once:true});if(signal.aborted)ctl.abort();
+  const timer=setTimeout(abort,6500);let reader;
+  try{
+    const r=await fetch(url,{signal:ctl.signal,cache:'no-store',headers:{Range:'bytes=0-4095'}});
+    if(!r.ok)throw Error('HTTP '+r.status);
+    reader=r.body?.getReader();let chunks=[],length=0;
+    if(reader){while(length<16384){const {value,done}=await reader.read();if(done)break;chunks.push(value.slice(0,16384-length));length+=chunks[chunks.length-1].length;
+      if((r.headers.get('content-type')||'').startsWith('audio/')||length>=16384)break;}}
+    else {const b=new Uint8Array(await r.arrayBuffer());chunks=[b.slice(0,16384)];length=chunks[0].length;}
+    const bytes=new Uint8Array(length);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
+    if(!length)throw Error('音源返回空内容');
+    try{audioFormat(bytes);return r.url||url;}catch{}
+    if((r.headers.get('content-type')||'').startsWith('audio/'))return r.url||url;
+    let data;try{data=JSON.parse(new TextDecoder().decode(bytes));}catch{throw Error('音源没有返回音频');}
+    const candidate=typeof data==='string'?data:data?.url||data?.data?.url||data?.[0]?.url;
+    const resolved=webUrl(candidate);
+    if(!resolved||resolved===url)throw Error('音源没有提供播放地址');
+    return resolved;
+  }finally{clearTimeout(timer);signal.removeEventListener('abort',abort);if(reader)try{await reader.cancel();}catch{}}
+}
+async function resolvePlayback(item,signal){
+  const source=playbackPlatform(item),id=new URL(item.url,location.href).searchParams.get('id')||item.id;
+  const r=await fetch('/.netlify/functions/playback?'+new URLSearchParams({source,id,name:item.name||'',artist:item.artist||''}),{signal,cache:'no-store'});
+  const data=await r.json();
+  if(!r.ok)throw Error(data.error||'完整音频核验失败');
+  if(!data.verifiedFull||!data.fullDecoded||!data.tailDecoded||!Number.isFinite(data.duration)||!/^\/media\/[a-f0-9]{36}$/.test(data.url))throw Error('音源未通过完整性核验');
+  return data;
+}
+function playAudio(request){
+  return audio.play().then(()=>{if(request===playbackRequest){playbackFailed=false;playbackNotice();persistBookmark();}}).catch(error=>{
+    if(request!==playbackRequest||error.name==='AbortError')return;
+    if(error.name==='NotAllowedError')return playbackNotice('浏览器需要你再点一次播放按钮');
+    playbackFailed=true;playbackNotice('音频加载或解码失败，可重试当前音源。',true);
+  });
+}
+async function startTrack(it,index,seconds=0){
+  const request=++playbackRequest;playbackController?.abort();playbackController=new AbortController();
+  playbackLoading=true;playbackFailed=false;verifiedPlayback=null;el('verifiedPlaybackLabel').textContent='待核验';playbackNotice();
+  if(playbackSeek)audio.removeEventListener('loadedmetadata',playbackSeek);
+  audio.pause();audio.removeAttribute('src');audio.load();
   playingIndex=index; playingItem=it;
   const nextLikedTrack=String(it.id||it.url||it.name||'');
   if(nextLikedTrack!==likedTrack){likedTrack=nextLikedTrack;liked=false;paintLike();}
@@ -1481,14 +1629,39 @@ function startTrack(it,index,seconds=0){
   el('plCover').src=el('nowCover').src=el('lyricsCover').src=cover;
   el('nowAmbientImage').src=cover;
   el('nowAmbientImage').alt=(it.name||'')+' 背景';
-  audio.src=it.url;
-  const seek=()=>{if(seconds>0&&Number.isFinite(audio.duration))audio.currentTime=Math.min(seconds,Math.max(0,audio.duration-1));};
-  audio.addEventListener('loadedmetadata',seek,{once:true});
-  if(audio.readyState>=1)seek();
-  audio.play().then(()=>{persistBookmark();}).catch(()=>toast('请点击播放按钮重试'));
-  persistBookmark();
   loadLyrics(it); markPlaying(); syncNow();
+  try{
+    let url=it.url;
+    if(['netease','tencent','kugou'].includes(playbackPlatform(it))){
+      playbackNotice('正在获取原曲并核验完整时长与尾段，首次播放需要稍候…');
+      const result=await resolvePlayback(it,playbackController.signal);
+      if(request!==playbackRequest)return;
+      verifiedPlayback=result;url=result.url;
+      const sourceName=SRCS.find(s=>s.key===result.source)?.label||({joox:'JOOX'}[result.source]||result.source);
+      el('verifiedPlaybackLabel').textContent=sourceName+' · 完整 '+fmt(result.duration)+(result.substituted?' · 同名同歌手匹配':'');
+    }
+    if(request!==playbackRequest)return;
+    audio.src=url;playbackLoading=false;playbackNotice();
+    const seek=()=>{
+      if(request!==playbackRequest)return;
+      if(verifiedPlayback&&Number.isFinite(audio.duration)&&Math.abs(audio.duration-verifiedPlayback.duration)>4){audio.pause();playbackFailed=true;playbackNotice('浏览器实际时长与已核验音频不符，已停止播放。',true);return;}
+      if(seconds>0&&Number.isFinite(audio.duration))audio.currentTime=Math.min(seconds,Math.max(0,audio.duration-1));
+    };
+    playbackSeek=seek;audio.addEventListener('loadedmetadata',seek,{once:true});
+    if(audio.readyState>=1)seek();
+    await playAudio(request);
+  }catch(error){
+    if(request!==playbackRequest||playbackController.signal.aborted)return;
+    playbackLoading=false;playbackFailed=true;playbackNotice(error.message||'当前音源无法提供播放地址',true);syncNow();
+  }
 }
+el('retryPlayback').onclick=()=>{if(playingItem&&!playbackLoading)startTrack(playingItem,playingIndex,audio.currentTime||0);};
+el('findNetease').onclick=()=>{
+  const item=playingItem;if(!item)return;
+  srcPick='netease';srcBar.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.k===srcPick));
+  el('q').value=[item.name,item.artist].filter(Boolean).join(' ');
+  closeNow();doSearch();toast('已切换到网易云搜索，请确认歌手和版本后播放');
+};
 el('nowClose').onclick=closeNow;
 el('plCover').onclick=openNow; el('plTitle').parentElement.onclick=openNow;
 el('nowPlay').onclick=()=>el('play').click();
@@ -1526,8 +1699,10 @@ function play(i,seconds=0){
 }
 
 el('play').onclick = ()=>{
+  if(playbackLoading)return toast('正在检查播放地址，请稍候');
+  if(playingItem&&playbackFailed)return startTrack(playingItem,playingIndex,audio.currentTime||0);
   if (!audio.src) return toast('先选一首歌');
-  if (audio.paused) audio.play().catch(()=>toast('播放失败，换一首试试'));
+  if (audio.paused)playAudio(playbackRequest);
   else audio.pause();
 };
 el('go').onclick = doSearch;
@@ -1545,7 +1720,11 @@ audio.addEventListener('timeupdate', ()=>{
 audio.addEventListener('ended', ()=>{
   if (playingIndex >= 0 && playingIndex + 1 < playingQueue.length) changeTrack(1);
 });
-audio.addEventListener('error', ()=>toast('这首歌暂时无法播放（可能版权受限）'));
+audio.addEventListener('error', ()=>{
+  if(!playingItem||!audio.getAttribute('src')||playbackLoading)return;
+  playbackFailed=true;playbackNotice('音频地址无法加载或格式不受支持，可重试当前音源。',true);
+});
+audio.addEventListener('playing',()=>{playbackFailed=false;playbackNotice();});
 
 // 音源选择：搜索用哪个平台
 const srcBar = document.createElement('div');
@@ -1555,7 +1734,7 @@ srcBar.innerHTML = SRCS.map(s=>`<button class="tab ${s.key===srcPick?'on':''}" d
 srcBar.querySelectorAll('.tab').forEach(b=>{
   b.onclick = ()=>{ srcPick = b.dataset.k;
     srcBar.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on', x.dataset.k===srcPick));
-    if (el('q').value.trim()) doSearch(); };
+    if (el('q').value.trim()) doSearch(); else if(searchState)loadChart(); };
 });
 $('header').appendChild(srcBar);
 
