@@ -3,11 +3,216 @@
 <head>
 <meta charset="utf-8">
 <!-- 仅允许本页面的音乐播放器脚本，阻止托管平台注入的推广浮层。修改脚本后须重算 SHA-256。 -->
-<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-QiEDJNfs399bkJXqRAzzyIZr3qiqUHNFQFxKcIDgbmM='; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-ixMDFknpy09dsw+9nBFAk3Mi4e4VIDR3MHGIW91syQY=' 'sha256-QiEDJNfs399bkJXqRAzzyIZr3qiqUHNFQFxKcIDgbmM=' 'sha256-GkPbbI8GtpPpy8T468LC4hvGZsvI1wbVzh8561imEI4='; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#090b12">
 <title>音乐雷达 · 中文音乐</title>
+<script>
+/* Load before the stylesheet to establish the first painted theme. */
+(() => {
+  'use strict';
+  const root = document.documentElement;
+  const storageKey = 'lg.theme';
+  const modes = new Set(['auto', 'light', 'dark']);
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+  let mode = 'auto';
+  let nativeDark = null;
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (modes.has(saved)) mode = saved;
+  } catch { /* Storage can be disabled. Keep the in-memory mode. */ }
+  try {
+    const reported = window.LiquidGlassHost?.getSystemDarkMode?.();
+    if (reported === true || reported === false) nativeDark = reported;
+    if (reported === 'dark' || reported === 'light') nativeDark = reported === 'dark';
+  } catch { /* Some hosts expose the bridge only after navigation. */ }
+
+  function apply() {
+    const theme = mode === 'auto' ? ((nativeDark ?? media.matches) ? 'dark' : 'light') : mode;
+    if (root.dataset.lgTheme === theme && root.dataset.lgMode === mode) return;
+    root.dataset.lgTheme = theme;
+    root.dataset.lgMode = mode;
+    window.dispatchEvent(new CustomEvent('lg:theme', { detail: { mode, theme } }));
+  }
+
+  window.LiquidGlassTheme = Object.freeze({
+    get mode() { return mode; },
+    get theme() { return root.dataset.lgTheme; },
+    setMode(value) {
+      if (!modes.has(value)) return false;
+      mode = value;
+      try { localStorage.setItem(storageKey, value); } catch { /* Retain memory state. */ }
+      apply();
+      return true;
+    },
+    setSystemDark(value) {
+      if (value !== null && typeof value !== 'boolean') return false;
+      nativeDark = value;
+      apply();
+      return true;
+    }
+  });
+  if (media.addEventListener) media.addEventListener('change', apply);
+  else media.addListener(apply);
+  apply();
+})();
+
+(() => {
+  let skin = 'miuix';
+  try {
+    if (localStorage.getItem('musicRadar.appearance') === 'glass') skin = 'glass';
+  } catch { /* Storage may be unavailable. */ }
+  document.documentElement.dataset.radarSkin = skin;
+  if (new URLSearchParams(location.search).get('glass-fallback') === '1') {
+    document.documentElement.setAttribute('data-lg-no-svg', '');
+  }
+})();
+</script>
 <style>
+/* Android Liquid Glass · Web and WebView component primitives */
+:root {
+  color-scheme: light;
+  --lg-background: #edf1f7;
+  --lg-ink: #17212e;
+  --lg-muted: #525e70;
+  --lg-accent: #0063c5;
+  --lg-line: #253b561e;
+  --lg-surface: rgb(251 253 255 / .55);
+  --lg-solid: #f2f6fc;
+  --lg-dock-surface: rgb(255 255 255 / .16);
+  --lg-pill-surface: rgb(0 15 35 / .10);
+  --lg-search-surface: rgb(255 255 255 / .28);
+  --lg-drawer-surface: rgb(250 250 250 / .44);
+  --lg-sheet-surface: rgb(253 254 255 / .60);
+  --lg-bar-surface: rgb(252 253 255 / .42);
+  --lg-rim: rgb(255 255 255 / .75);
+  --lg-glint: rgb(255 255 255 / .55);
+  --lg-shadow: rgb(26 40 64 / .17);
+  --lg-aurora-a: #97dace;
+  --lg-aurora-b: #b0c8f3;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+:root[data-lg-theme="dark"] {
+  color-scheme: dark;
+  --lg-background: #101824;
+  --lg-ink: #eff4ff;
+  --lg-muted: #b2bed0;
+  --lg-accent: #72c1ff;
+  --lg-line: #bed9ff27;
+  --lg-surface: rgb(28 40 59 / .55);
+  --lg-solid: #1b283a;
+  --lg-dock-surface: rgb(23 30 44 / .22);
+  --lg-pill-surface: rgb(197 224 255 / .13);
+  --lg-search-surface: rgb(28 40 59 / .28);
+  --lg-drawer-surface: rgb(24 36 54 / .55);
+  --lg-sheet-surface: rgb(24 36 54 / .64);
+  --lg-bar-surface: rgb(28 40 59 / .42);
+  --lg-rim: rgb(188 220 255 / .25);
+  --lg-glint: rgb(162 211 255 / .25);
+  --lg-shadow: rgb(0 0 0 / .35);
+  --lg-aurora-a: #195957;
+  --lg-aurora-b: #263c69;
+}
+.lg {
+  --lg-blur: 8px;
+  --lg-lens: 0;
+  --lg-band: .24;
+  --lg-saturate: 1.25;
+  --lg-brightness: 1;
+  --lg-radius: 22px;
+  position: relative;
+  border-radius: var(--lg-radius);
+  color: var(--lg-ink);
+  background-color: var(--lg-solid);
+  box-shadow: inset 0 0 0 1px var(--lg-rim), 0 8px 25px -14px var(--lg-shadow);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .lg {
+    background-color: var(--lg-surface);
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
+  }
+  .lg[data-lg-svg="ready"] {
+    backdrop-filter: var(--lg-filter) saturate(var(--lg-saturate)) brightness(var(--lg-brightness));
+  }
+}
+.lg-glint::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  content: "";
+  background: radial-gradient(ellipse at var(--lg-pointer-x, 35%) var(--lg-pointer-y, 0%), var(--lg-glint), transparent 65%);
+  opacity: var(--lg-glint-opacity, .35);
+}
+.lg:focus-visible, .lg-dock button:focus-visible { outline: 2px solid var(--lg-accent); outline-offset: 2px; }
+.lg-button {
+  --lg-blur: 2px; --lg-lens: 12; --lg-radius: 999px;
+  min-height: 48px; padding-inline: 16px; border: 0;
+  color: var(--lg-accent); font: inherit; cursor: pointer;
+}
+.lg-search {
+  --lg-surface: var(--lg-search-surface); --lg-blur: 6px;
+  --lg-lens: 22; --lg-band: .34; --lg-radius: 999px;
+}
+.lg-drawer {
+  --lg-surface: var(--lg-drawer-surface); --lg-blur: 9px;
+  --lg-lens: 30; --lg-band: .15;
+}
+.lg-sheet {
+  --lg-surface: var(--lg-sheet-surface); --lg-blur: 14px;
+  --lg-lens: 24; --lg-band: .12;
+}
+.lg-reader-bar { --lg-surface: var(--lg-bar-surface); --lg-blur: 18px; }
+/* Keep the moving indicator a sibling of the filtering dock surface. */
+.lg-dock {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: stretch;
+  box-sizing: border-box;
+  height: 64px;
+  padding: 4px;
+  touch-action: pan-y;
+  user-select: none;
+  transform: translateX(var(--lg-panel-x, 0px));
+}
+.lg-dock-track, .lg-dock-pill { position: absolute; pointer-events: none; }
+.lg-dock-track {
+  --lg-surface: var(--lg-dock-surface); --lg-blur: 5px; --lg-lens: 30;
+  --lg-saturate: 1; --lg-brightness: 1.04; --lg-band: .26; --lg-radius: 999px;
+  inset: 0;
+}
+.lg-dock-pill {
+  --lg-surface: var(--lg-pill-surface); --lg-blur: 0px; --lg-lens: 3;
+  --lg-radius: 999px; --lg-saturate: 1; --lg-band: .34;
+  inset-block-start: 4px; inset-inline-start: 4px; block-size: 56px;
+  inline-size: calc((100% - 8px) / var(--lg-tabs, 4));
+  transform: translateX(var(--lg-pill-x, 0px)) scale(var(--lg-sx, 1), var(--lg-sy, 1));
+  box-shadow: inset 0 0 0 1px var(--lg-rim);
+}
+.lg-dock button {
+  position: relative; min-width: 0; padding: 3px; border: 0;
+  border-radius: 999px; background: none; cursor: pointer;
+  color: var(--lg-ink); font: inherit;
+  color: color-mix(in oklab, var(--lg-accent) var(--lg-selected, 0%), var(--lg-ink));
+}
+.lg-dock button[aria-pressed="true"] { color: var(--lg-accent); }
+@supports (color: color-mix(in oklab, red 50%, blue)) {
+  .lg-dock button[aria-pressed="true"] {
+    color: color-mix(in oklab, var(--lg-accent) var(--lg-selected, 100%), var(--lg-ink));
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .lg, .lg[data-lg-svg="ready"] {
+    background-color: var(--lg-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 :root{
   --bg:#090b12; --bg2:#0f1320; --card:#151a29; --line:#232a3d;
   --txt:#e8ecf6; --dim:#8b96ad; --acc:#5b8cff; --acc2:#38d9a9; --warn:#ffb454;
@@ -308,6 +513,226 @@ body.home-chrome-hidden header{border-bottom-color:transparent;transform:transla
 .now-page:not(.lyrics-mode) .now-pages{margin-bottom:146px;transition:margin-bottom .42s cubic-bezier(.2,.75,.25,1)}
 .now-page.lyrics-mode .now-pages{margin-bottom:64px;transition:margin-bottom .42s cubic-bezier(.2,.75,.25,1)}
 @media(prefers-reduced-motion:reduce){.now-pages{transition:none!important}}
+
+/* Appearance switch. The live player stays mounted in either skin. */
+.appearance-toggle {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  margin-inline-start: auto; min-height: 44px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: var(--card); color: var(--txt); font-size: 12px;
+  font-weight: 650; white-space: nowrap;
+  transition: background-color .26s ease, color .26s ease, box-shadow .26s ease;
+}
+.appearance-icon { font-size: 16px; color: var(--acc); }
+.appearance-toggle:focus-visible {
+  outline: 2px solid var(--acc); outline-offset: 3px;
+}
+.now-head { display: grid; grid-template-columns: 1fr auto 1fr; padding-inline: clamp(8px, 3vw, 20px); }
+.now-head #nowClose { justify-self: start; }
+.now-actions { display: flex; justify-self: end; align-items: center; }
+.now-head .now-actions button {
+  width: auto; min-width: 44px; min-height: 44px; padding: 0 4px;
+  font-size: 13px; color: #d7e3f3;
+}
+.now-actions .appearance-toggle { margin: 0; border: 0; background: #ffffff12; }
+.now-actions .appearance-toggle[aria-pressed=true] { color: #9ff1da; background-color: #a5f3df26; }
+:root[data-radar-skin="miuix"] { color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+  :root[data-radar-skin="miuix"] { color-scheme: dark; }
+}
+
+/* Liquid Glass surfaces. Limit live refraction to the stable search capsule. */
+:root[data-radar-skin="glass"] {
+  --lg-background: #e6eef7;
+  --lg-ink: #14273c;
+  --lg-muted: #475c73;
+  --lg-accent: #145f85;
+  --lg-aurora-a: #a5e2d5;
+  --lg-aurora-b: #bdaeea;
+  --bg: var(--lg-background); --bg2: var(--lg-solid); --card: var(--lg-solid);
+  --txt: var(--lg-ink); --dim: var(--lg-muted); --acc: var(--lg-accent); --acc2: var(--lg-accent);
+  --line: var(--lg-line); --pressed: #c9dcf0; --warn: #924d16;
+  --glass-card: #f7fbffad; --glass-row: #f5faff54;
+  --glass-active: #c0eee5c4; --glass-action: #e8f5fd;
+  --glass-rim: #ffffffc9; --glass-edge: #35548121;
+  --glass-shine: linear-gradient(165deg, #fff9, transparent 46%);
+}
+:root[data-radar-skin="glass"][data-lg-theme="dark"] {
+  --lg-background: #111c2c;
+  --lg-ink: #eff7ff;
+  --lg-muted: #b4c4d9;
+  --lg-accent: #a5eddd;
+  --lg-aurora-a: #1b6b6b;
+  --lg-aurora-b: #514387;
+  --pressed: #2a4461; --warn: #ffc18e;
+  --glass-card: #1a2a41c9; --glass-row: #27415a4d;
+  --glass-active: #235961c4; --glass-action: #27445a;
+  --glass-rim: #cde7ff4a; --glass-edge: #a5caff24;
+  --glass-shine: linear-gradient(165deg, #a3daff25, transparent 48%);
+}
+[data-radar-skin="glass"] body {
+  background: radial-gradient(ellipse at 8% 15%, var(--lg-aurora-a), transparent 60%),
+              radial-gradient(ellipse at 95% 45%, var(--lg-aurora-b), transparent 62%), var(--bg);
+  background-attachment: fixed;
+}
+[data-radar-skin="glass"] body > header {
+  background: transparent; border-color: transparent; box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+[data-radar-skin="glass"] body > header::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background-color: var(--lg-solid);
+  border-radius: 0 0 28px 28px;
+  box-shadow: inset 0 -1px var(--glass-rim), 0 10px 25px -18px var(--lg-shadow);
+}
+[data-radar-skin="glass"] .brand h1 { font-size: clamp(23px, 6vw, 34px); line-height: 1.16; letter-spacing: -.035em; }
+[data-radar-skin="glass"] .brand .sub { color: var(--dim); }
+[data-radar-skin="glass"] .brand .logo {
+  width: 42px; height: 42px; border-radius: 15px; color: var(--txt);
+  background: var(--glass-shine), var(--glass-card);
+  box-shadow: inset 0 0 0 1px var(--glass-rim), 0 8px 21px -12px var(--lg-shadow);
+}
+[data-radar-skin="glass"] body > header .appearance-toggle {
+  color: var(--txt); background-color: var(--lg-solid); border-color: var(--glass-rim);
+  box-shadow: inset 0 1px 0 var(--glass-rim), 0 4px 16px -9px var(--lg-shadow);
+}
+[data-radar-skin="glass"] .search { padding: 4px; align-items: stretch; background-image: var(--glass-shine); }
+[data-radar-skin="glass"] .search input[type=search] {
+  border-radius: 999px; background: transparent; border-color: transparent; color: var(--txt); padding-left: 13px;
+}
+[data-radar-skin="glass"] .search input[type=search]::placeholder { color: var(--dim); }
+[data-radar-skin="glass"] .search input[type=search]:focus-visible { border-color: var(--acc); }
+[data-radar-skin="glass"] .go {
+  border: 1px solid var(--glass-rim); border-radius: 999px;
+  background: var(--glass-shine), var(--glass-action); color: var(--acc);
+}
+[data-radar-skin="glass"] .tabs { background: transparent; border: 0; }
+[data-radar-skin="glass"] .tab {
+  border-radius: 999px; background: var(--glass-row); border: 1px solid var(--glass-edge); color: var(--txt);
+}
+[data-radar-skin="glass"] .tab.on,
+[data-radar-skin="glass"] .library button[aria-current=true] {
+  background: var(--glass-active); color: var(--txt); border-color: var(--glass-rim);
+  box-shadow: inset 0 1px var(--glass-rim);
+}
+[data-radar-skin="glass"] :is(.library,.playlist-tools,#list) {
+  background: var(--glass-shine), var(--glass-card); border: 1px solid var(--glass-rim);
+  border-radius: 24px; box-shadow: 0 12px 32px -22px var(--lg-shadow);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+[data-radar-skin="glass"] .library h2 { font-size: 17px; }
+[data-radar-skin="glass"] .row {
+  background: var(--glass-row); border-color: var(--glass-edge); min-height: 68px;
+}
+[data-radar-skin="glass"] .row:is(:active,.playing) { background: var(--glass-active); }
+[data-radar-skin="glass"] :is(.title,.pl-title) { color: var(--txt); }
+[data-radar-skin="glass"] :is(.artist,.rank,.pl-artist,.times,footer) { color: var(--dim); }
+[data-radar-skin="glass"] :is(.cover,.pl-cover) { border-radius: 12px; background-color: var(--lg-solid); }
+[data-radar-skin="glass"] :is(.icon,.row .add-song,.row .remove-song) {
+  background: var(--glass-row); border: 1px solid var(--glass-edge); border-radius: 12px; color: var(--acc);
+}
+[data-radar-skin="glass"] :is(.library button,.playlist-tools button,.batch-tools button,.qbtn,.library-dialog button,.playlist-tools input,.playlist-tools select,.library-dialog input,.library-dialog select) {
+  background: var(--glass-action); color: var(--txt); border: 1px solid var(--glass-edge); border-radius: 14px;
+}
+[data-radar-skin="glass"] :is(.qbtn .q-desc,.sheet .sh-title,.sheet .cancel) { color: var(--dim); }
+[data-radar-skin="glass"] .player {
+  left: 50%; right: auto; bottom: calc(10px + env(safe-area-inset-bottom));
+  width: min(660px, calc(100% - 24px)); padding: 8px 12px;
+  transform: translateX(-50%); border: 1px solid var(--glass-rim); border-radius: 24px;
+  background: var(--glass-shine), var(--lg-solid);
+  box-shadow: inset 0 -1px var(--glass-edge), 0 16px 44px -18px var(--lg-shadow);
+}
+[data-radar-skin="glass"] .player:not(.is-bubble) .play {
+  color: var(--txt); background: var(--glass-shine), var(--glass-active);
+  border: 1px solid var(--glass-rim); box-shadow: inset 0 -1px var(--glass-edge);
+}
+[data-radar-skin="glass"] .player.is-bubble {
+  left: auto; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 66px; padding: 4px; transform: none; border-radius: 50%;
+}
+[data-radar-skin="glass"] .player.is-bubble .pl-cover { border-radius: 50%; }
+[data-radar-skin="glass"] .bar { background: var(--glass-edge); }
+[data-radar-skin="glass"] .bar i { background: var(--acc); }
+[data-radar-skin="glass"] :is(.sheet,.library-dialog) {
+  border: 1px solid var(--glass-rim); border-radius: 24px;
+  background: var(--glass-shine), var(--lg-solid); color: var(--txt);
+  box-shadow: 0 18px 55px -18px var(--lg-shadow);
+}
+
+/* Immersive glass player uses the same cover image and audio controls. */
+[data-radar-skin="glass"] .now-page { background: #142135; }
+[data-radar-skin="glass"] .now-ambient {
+  background: radial-gradient(ellipse at 70% 20%, #40527e, transparent 66%),
+    radial-gradient(ellipse at 8% 90%, #32646c, transparent 65%), #172a3d;
+}
+[data-radar-skin="glass"] .now-ambient img { opacity: .72; filter: blur(34px) saturate(155%); }
+[data-radar-skin="glass"] .now-ambient::after { background: linear-gradient(180deg,#10203177,#0c172647 35%,#0a1327da); }
+[data-radar-skin="glass"] .now-tabs {
+  padding: 2px 4px; gap: 4px; border: 1px solid #c4e6ff36; border-radius: 999px;
+  background: linear-gradient(150deg,#e5f3ff29,#c2dcf70c);
+  box-shadow: inset 0 1px #e9f6ff29, 0 5px 16px #040c202e;
+}
+[data-radar-skin="glass"] .now-tabs button { min-width: 44px; border-radius: 999px; color: #cedceb; }
+[data-radar-skin="glass"] .now-tabs button.on { background: #dbedff33; color: #fff; box-shadow: inset 0 1px #eaf6ff4d; }
+[data-radar-skin="glass"] .now-tabs button::after { content: none; }
+[data-radar-skin="glass"] .now-art { padding-top: clamp(15px, 3.8vh, 44px); gap: clamp(14px, 3vh, 27px); }
+[data-radar-skin="glass"] .record-stage { width: min(73vw, 42dvh, 365px); }
+[data-radar-skin="glass"] .record {
+  animation: none; transform: none; padding: 7px; border-radius: 32px; border-color: #dfedff80;
+  background: linear-gradient(135deg,#d8efff91,#91bcf547 45%,#acf2dd6b);
+  box-shadow: inset 0 1px #fff8, 0 20px 50px #0309179c, 0 0 36px #a6d9fa33;
+}
+[data-radar-skin="glass"] .record img { border: 0; border-radius: 25px; box-shadow: 0 0 0 1px #06112d60; }
+[data-radar-skin="glass"] .record::before,
+[data-radar-skin="glass"] .record::after,
+[data-radar-skin="glass"] .tonearm { display: none; }
+[data-radar-skin="glass"] .track-info { width: min(100%, 420px); }
+[data-radar-skin="glass"] .now-title { color: #fff; }
+[data-radar-skin="glass"] :is(.now-artist,.swipe-note,.lyrics-meta,.lyrics-head small) { color: #c0d1e5; }
+[data-radar-skin="glass"] .now-bottom {
+  --glass-player-panel: #1b344a;
+  background: linear-gradient(155deg,#d6edff32,#c6ebff06 65%), var(--glass-player-panel);
+  border: 1px solid #c3e6ff52; border-radius: 28px 28px 0 0;
+  box-shadow: inset 0 1px #f5fcff3d, 0 -6px 28px #060f2861;
+}
+[data-radar-skin="glass"] .now-page:not(.lyrics-mode) .now-bottom {
+  background: linear-gradient(155deg,#d6edff32,#c6ebff06 65%), var(--glass-player-panel);
+  border: 1px solid #c3e6ff52; border-radius: 28px 28px 0 0;
+  box-shadow: inset 0 1px #f5fcff3d, 0 -6px 28px #060f2861;
+}
+[data-radar-skin="glass"] .now-page.lyrics-mode .now-bottom {
+  width: min(600px, calc(100% - 24px));
+  background: linear-gradient(155deg,#d6edff32,#c6ebff06 65%), var(--glass-player-panel);
+}
+[data-radar-skin="glass"] .now-bottom .main-play {
+  background: linear-gradient(135deg,#edfffb,#b0e5dd); color: #0f2535;
+}
+[data-radar-skin="glass"] .lyrics p.active::before { background: #91efda; box-shadow: 0 0 14px #91efda9c; }
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  [data-radar-skin="glass"] body > header::before {
+    background-color: var(--lg-bar-surface);
+    -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2);
+  }
+  [data-radar-skin="glass"] .player { background-color: var(--lg-dock-surface); }
+  [data-radar-skin="glass"] :is(.sheet,.library-dialog) { background-color: var(--lg-sheet-surface); }
+  [data-radar-skin="glass"] .now-bottom { --glass-player-panel: #172c42a3; }
+  [data-radar-skin="glass"] .now-page.lyrics-mode .now-bottom {
+    -webkit-backdrop-filter: blur(14px) saturate(1.25); backdrop-filter: blur(14px) saturate(1.25);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-radar-skin="glass"] body > header::before,
+  [data-radar-skin="glass"] :is(.search,.player,.sheet,.library-dialog) {
+    background-color: var(--lg-solid);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  [data-radar-skin="glass"] .now-bottom { --glass-player-panel: #1b344a; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .appearance-toggle { transition: none; }
+}
+
 </style>
 </head>
 <body>
@@ -318,8 +743,9 @@ body.home-chrome-hidden header{border-bottom-color:transparent;transform:transla
       <h1>音乐雷达</h1>
       <div class="sub">网易云 / QQ 音乐 / 酷狗 · 无损直连</div>
     </div>
+    <button class="appearance-toggle" type="button" aria-label="液态玻璃外观" aria-pressed="false" data-appearance><span class="appearance-icon" aria-hidden="true">◈</span><span data-appearance-label>MIUIX</span></button>
   </div>
-  <div class="search">
+  <div class="search" data-glass-search>
     <input id="q" type="search" placeholder="搜索歌曲、歌手" autocomplete="off" enterkeyhint="search">
     <button class="go" id="go">搜索</button>
   </div>
@@ -364,7 +790,7 @@ body.home-chrome-hidden header{border-bottom-color:transparent;transform:transla
 
 <section class="now-page" id="nowPage" role="dialog" aria-modal="true" aria-label="歌曲播放页" aria-hidden="true">
   <div class="now-ambient" aria-hidden="true"><img id="nowAmbientImage" alt=""></div>
-  <div class="now-head"><button id="nowClose" aria-label="收起播放页">收起</button><div class="now-tabs"><button id="coverTab" class="on">封面</button><button id="lyricsTab">歌词</button></div><button id="nowDownload" aria-label="下载当前歌曲">下载</button></div>
+  <div class="now-head"><button id="nowClose" aria-label="收起播放页">收起</button><div class="now-tabs"><button id="coverTab" class="on">封面</button><button id="lyricsTab">歌词</button></div><div class="now-actions"><button id="nowDownload" aria-label="下载当前歌曲">下载</button><button class="appearance-toggle" type="button" aria-label="液态玻璃外观" aria-pressed="false" data-appearance>外观</button></div></div>
   <div class="now-pages" id="nowPages">
     <div class="now-panel now-art">
       <div class="record-stage"><div class="record"><img id="nowCover" alt="歌曲封面"></div><span class="tonearm" aria-hidden="true"><i></i><b></b></span></div>
@@ -1166,6 +1592,352 @@ if (location.search.includes('selftest=1')){
   }, 3000);
 }
 
+</script>
+<script>
+/* SVG backdrop lens, pointer highlights and draggable bottom navigation. */
+(() => {
+  'use strict';
+  const ns = 'http://www.w3.org/2000/svg';
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+  const lenses = new WeakMap();
+  const docks = new WeakSet();
+  const glints = new WeakSet();
+  let defs;
+  let nextId = 0;
+
+  function svg(name, attributes) {
+    const node = document.createElementNS(ns, name);
+    for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+    return node;
+  }
+
+  function makeMap(width, height, radius, band) {
+    const ratio = Math.min(1, 320 / Math.max(width, height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * ratio));
+    canvas.height = Math.max(1, Math.round(height * ratio));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    const image = ctx.createImageData(canvas.width, canvas.height);
+    const coreX = width / 2 - radius;
+    const coreY = height / 2 - radius;
+    const depth = Math.max(1, Math.min(width, height) * band);
+    for (let y = 0; y < canvas.height; y++) {
+      const py = (y + .5) * height / canvas.height - height / 2;
+      for (let x = 0; x < canvas.width; x++) {
+        const px = (x + .5) * width / canvas.width - width / 2;
+        const qx = Math.max(0, Math.abs(px) - coreX);
+        const qy = Math.max(0, Math.abs(py) - coreY);
+        const length = Math.hypot(qx, qy);
+        const u = clamp((radius - length) / depth, 0, 1);
+        const strength = length ? (1 - u) ** 2 : 0;
+        const i = (y * canvas.width + x) * 4;
+        image.data[i] = 128 - (length ? 126 * strength * qx * Math.sign(px) / length : 0);
+        image.data[i + 1] = 128 - (length ? 126 * strength * qy * Math.sign(py) / length : 0);
+        image.data[i + 2] = 128;
+        image.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    return canvas.toDataURL();
+  }
+
+  function setDisplacement(state, extra) {
+    const scale = state.baseScale + extra;
+    state.warp.setAttribute('scale', scale);
+    if (state.split) {
+      state.split.red.setAttribute('scale', scale * 1.06);
+      state.split.blue.setAttribute('scale', scale * .94);
+    }
+  }
+
+  function updateLens(element) {
+    const state = lenses.get(element);
+    const width = element.offsetWidth;
+    const height = element.offsetHeight;
+    if (!width || !height) return;
+    const style = getComputedStyle(element);
+    const lens = parseFloat(style.getPropertyValue('--lg-lens')) || 0;
+    const blur = parseFloat(style.getPropertyValue('--lg-blur')) || 0;
+    const band = clamp(parseFloat(style.getPropertyValue('--lg-band')) || .24, .06, .5);
+    const radius = clamp(parseFloat(style.borderTopLeftRadius) || 0, 1, Math.min(width, height) / 2);
+    const key = [width, height, lens, blur, band, radius].join('/');
+    if (state.key === key) return;
+    const image = makeMap(width, height, radius, band);
+    if (!image) return;
+    state.key = key;
+    state.baseScale = lens;
+    state.image.setAttribute('width', width);
+    state.image.setAttribute('height', height);
+    state.image.setAttribute('href', image);
+    setDisplacement(state, 0);
+    state.blur.setAttribute('stdDeviation', blur / 2);
+    element.style.setProperty('--lg-filter', `url("#${state.filter.id}")`);
+    element.dataset.lgSvg = 'ready';
+  }
+
+  const observer = 'ResizeObserver' in window ? new ResizeObserver(entries => {
+    for (const entry of entries) updateLens(entry.target);
+  }) : null;
+
+  function addLens(element) {
+    if (lenses.has(element) || document.documentElement.hasAttribute('data-lg-no-svg') ||
+        !CSS.supports('backdrop-filter', 'url("#lg-probe")')) return;
+    if (!defs) {
+      const container = svg('svg', { width: 0, height: 0, 'aria-hidden': 'true' });
+      container.style.cssText = 'position:absolute; pointer-events:none';
+      defs = svg('defs', {});
+      container.append(defs);
+      document.body.prepend(container);
+    }
+    const filter = svg('filter', {
+      id: `lg-lens-${++nextId}`, x: '-40%', y: '-40%', width: '180%', height: '180%',
+      primitiveUnits: 'userSpaceOnUse', 'color-interpolation-filters': 'sRGB',
+    });
+    const image = svg('feImage', { x: 0, y: 0, preserveAspectRatio: 'none', result: 'map' });
+    const warp = svg('feDisplacementMap', {
+      in: 'SourceGraphic', in2: 'map', xChannelSelector: 'R', yChannelSelector: 'G', result: 'warp',
+    });
+    const blur = svg('feGaussianBlur', { in: 'warp', edgeMode: 'duplicate' });
+    filter.append(image, warp);
+    let split = null;
+    if (element.hasAttribute('data-lg-dispersion')) {
+      const displacement = (result) => svg('feDisplacementMap', {
+        in: 'SourceGraphic', in2: 'map', xChannelSelector: 'R', yChannelSelector: 'G', result,
+      });
+      const red = displacement('warp-red');
+      const blue = displacement('warp-blue');
+      const channel = (input, r, g, b, result) => svg('feColorMatrix', {
+        in: input, type: 'matrix', values: `${r} 0 0 0 0  0 ${g} 0 0 0  0 0 ${b} 0 0  0 0 0 0 1`, result,
+      });
+      filter.append(red, blue,
+        channel('warp-red', 1, 0, 0, 'red'), channel('warp', 0, 1, 0, 'green'), channel('warp-blue', 0, 0, 1, 'blue'),
+        svg('feBlend', { in: 'red', in2: 'green', mode: 'screen', result: 'rg' }),
+        svg('feBlend', { in: 'rg', in2: 'blue', mode: 'screen', result: 'rgb' }),
+        svg('feComposite', { in: 'rgb', in2: 'warp', operator: 'in', result: 'dispersed' }));
+      blur.setAttribute('in', 'dispersed');
+      split = { red, blue };
+    }
+    filter.append(blur);
+    defs.append(filter);
+    lenses.set(element, { filter, image, warp, blur, split, baseScale: 0 });
+    observer?.observe(element);
+    updateLens(element);
+  }
+
+  function addGlint(element) {
+    if (glints.has(element)) return;
+    glints.add(element);
+    element.addEventListener('pointermove', event => {
+      const rect = element.getBoundingClientRect();
+      element.style.setProperty('--lg-pointer-x', `${event.clientX - rect.left}px`);
+      element.style.setProperty('--lg-pointer-y', `${event.clientY - rect.top}px`);
+    });
+    element.addEventListener('pointerleave', () => {
+      element.style.removeProperty('--lg-pointer-x');
+      element.style.removeProperty('--lg-pointer-y');
+    });
+  }
+
+  function addDock(dock) {
+    if (docks.has(dock)) return;
+    const pill = dock.querySelector('.lg-dock-pill');
+    const buttons = [...dock.querySelectorAll('button[data-lg-tab]')];
+    if (!pill || !buttons.length) return;
+    docks.add(dock);
+    const count = buttons.length;
+    const indexOf = target => buttons.indexOf(target.closest('button[data-lg-tab]'));
+    let selected = Math.max(0, buttons.findIndex(button => button.getAttribute('aria-pressed') === 'true'));
+    let cursor = selected;
+    let press = 0;
+    let panel = 0;
+    let velocity = 0;
+    let frameId = 0;
+    let drag = null;
+    let suppressClickUntil = 0;
+    dock.style.setProperty('--lg-tabs', count);
+
+    function render() {
+      const direction = getComputedStyle(dock).direction === 'rtl' ? -1 : 1;
+      const width = (dock.clientWidth - 8) / count;
+      const speed = clamp(velocity, -.2, .2);
+      const scale = reducedMotion.matches ? 1 : 1 + (78 / 56 - 1) * press;
+      dock.style.setProperty('--lg-panel-x', `${panel}px`);
+      dock.style.setProperty('--lg-pill-x', `${direction * cursor * width}px`);
+      dock.style.setProperty('--lg-sx', scale / (1 - speed * .75));
+      dock.style.setProperty('--lg-sy', scale * (1 - speed * .25));
+      pill.style.setProperty('--lg-glint-opacity', .35 + .55 * press);
+      pill.style.setProperty('--lg-press', press);
+      const lens = lenses.get(pill);
+      if (lens) setDisplacement(lens, 10 * press);
+      buttons.forEach((button, index) => {
+        button.style.setProperty('--lg-selected', `${clamp(1 - Math.abs(cursor - index), 0, 1) * 100}%`);
+      });
+    }
+
+    function settle() {
+      cancelAnimationFrame(frameId);
+      if (reducedMotion.matches) {
+        cursor = selected;
+        press = panel = velocity = 0;
+        render();
+        return;
+      }
+      let lastTime;
+      let springSpeed = 0;
+      function step(time) {
+        const dt = Math.min(24, lastTime ? time - lastTime : 16) / 1000;
+        lastTime = time;
+        springSpeed += (285 * (selected - cursor) - 28 * springSpeed) * dt;
+        cursor += springSpeed * dt;
+        const fade = Math.exp(-16 * dt);
+        press *= fade;
+        panel *= fade;
+        velocity *= fade;
+        if (Math.abs(cursor - selected) + Math.abs(springSpeed) + press + Math.abs(panel) < .012) {
+          cursor = selected;
+          press = panel = velocity = 0;
+          render();
+          return;
+        }
+        render();
+        frameId = requestAnimationFrame(step);
+      }
+      frameId = requestAnimationFrame(step);
+    }
+
+    function select(index) {
+      if (index < 0 || index >= count) return;
+      const changed = selected !== index;
+      selected = index;
+      buttons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === index)));
+      settle();
+      if (changed) dock.dispatchEvent(new CustomEvent('lg:tabchange', { bubbles: true, detail: { index, button: buttons[index] } }));
+    }
+
+    function pressIn() {
+      cancelAnimationFrame(frameId);
+      if (reducedMotion.matches) return;
+      let start;
+      const initial = press;
+      function step(time) {
+        start ??= time;
+        const progress = clamp((time - start) / 140, 0, 1);
+        press = initial + (1 - initial) * (1 - (1 - progress) ** 3);
+        render();
+        if (progress < 1) frameId = requestAnimationFrame(step);
+      }
+      frameId = requestAnimationFrame(step);
+    }
+
+    dock.addEventListener('pointerdown', event => {
+      if (!event.isPrimary || event.button !== 0 || drag) return;
+      const target = indexOf(event.target);
+      if (target < 0) return;
+      suppressClickUntil = 0;
+      const rect = dock.getBoundingClientRect();
+      drag = { id: event.pointerId, x: event.clientX, from: selected, lastX: event.clientX, time: event.timeStamp,
+        direction: getComputedStyle(dock).direction === 'rtl' ? -1 : 1, width: rect.width, active: false };
+      pressIn();
+    });
+    window.addEventListener('pointermove', event => {
+      if (!drag || drag.id !== event.pointerId) return;
+      const dx = event.clientX - drag.x;
+      if (!drag.active && Math.abs(dx) < 6) return;
+      if (!drag.active) {
+        drag.active = true;
+        dock.setPointerCapture(event.pointerId);
+      }
+      cursor = clamp(drag.from + drag.direction * dx / ((drag.width - 8) / count), 0, count - 1);
+      const portion = clamp(dx / drag.width, -1, 1);
+      panel = reducedMotion.matches ? 0 : 4 * Math.sign(portion) * (1 - (1 - Math.abs(portion)) ** 2);
+      velocity = reducedMotion.matches ? 0 : (event.clientX - drag.lastX) / Math.max(10, event.timeStamp - drag.time) * .11;
+      drag.lastX = event.clientX;
+      drag.time = event.timeStamp;
+      render();
+    });
+    function finish(event, cancelled) {
+      if (!drag || drag.id !== event.pointerId) return;
+      const wasActive = drag.active;
+      drag = null;
+      if (wasActive) suppressClickUntil = performance.now() + 300;
+      select(wasActive && !cancelled ? Math.round(cursor) : selected);
+    }
+    window.addEventListener('pointerup', event => finish(event, false));
+    window.addEventListener('pointercancel', event => finish(event, true));
+    dock.addEventListener('lostpointercapture', event => {
+      if (event.target === dock) finish(event, true);
+    });
+    dock.addEventListener('click', event => {
+      if (event.detail && performance.now() < suppressClickUntil) return;
+      select(indexOf(event.target));
+    });
+    dock.addEventListener('keydown', event => {
+      const index = indexOf(event.target);
+      if (index < 0) return;
+      const direction = getComputedStyle(dock).direction === 'rtl' ? -1 : 1;
+      const next = { ArrowLeft: index - direction, ArrowRight: index + direction, Home: 0, End: count - 1 }[event.key];
+      if (next === undefined) return;
+      event.preventDefault();
+      const target = clamp(next, 0, count - 1);
+      buttons[target].focus();
+      select(target);
+    });
+    if ('ResizeObserver' in window) new ResizeObserver(render).observe(dock);
+    else window.addEventListener('resize', render);
+    window.addEventListener('lg:theme', render);
+    render();
+  }
+
+  function init(root = document) {
+    const each = (selector, fn) => {
+      if (root.matches?.(selector)) fn(root);
+      root.querySelectorAll(selector).forEach(fn);
+    };
+    each('.lg[data-lg-lens]', element => lenses.has(element) ? updateLens(element) : addLens(element));
+    each('.lg-glint', addGlint);
+    each('.lg-dock', addDock);
+  }
+  window.LiquidGlass = Object.freeze({ init });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => init(), { once: true });
+  else init();
+})();
+
+(() => {
+  'use strict';
+  const root = document.documentElement;
+  const toggles = document.querySelectorAll('[data-appearance]');
+  const homeLabel = document.querySelector('[data-appearance-label]');
+  const search = document.querySelector('[data-glass-search]');
+  const themeColor = document.querySelector('meta[name="theme-color"]');
+  const defaultThemeColor = themeColor.content;
+
+  function applyAppearance() {
+    const glass = root.dataset.radarSkin === 'glass';
+    homeLabel.textContent = glass ? '液态玻璃' : 'MIUIX';
+    for (const button of toggles) {
+      button.setAttribute('aria-pressed', String(glass));
+      button.title = glass ? '切换为 MIUIX' : '切换为液态玻璃';
+    }
+    search.classList.toggle('lg', glass);
+    search.classList.toggle('lg-search', glass);
+    search.toggleAttribute('data-lg-lens', glass);
+    if (glass) window.LiquidGlass.init(search);
+    themeColor.content = glass ? (root.dataset.lgTheme === 'dark' ? '#111c2c' : '#e6eef7') : defaultThemeColor;
+  }
+
+  for (const button of toggles) {
+    button.addEventListener('click', () => {
+      const skin = root.dataset.radarSkin === 'glass' ? 'miuix' : 'glass';
+      root.dataset.radarSkin = skin;
+      try { localStorage.setItem('musicRadar.appearance', skin); } catch { /* Apply in memory. */ }
+      applyAppearance();
+    });
+  }
+  window.addEventListener('lg:theme', applyAppearance);
+  applyAppearance();
+})();
 </script>
 </body>
 </html>
