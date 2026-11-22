@@ -2,7 +2,7 @@ import http from 'node:http';
 import {readFile,stat} from 'node:fs/promises';
 import {createReadStream} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {resolve,getMedia,PlaybackError} from './playback.mjs';
+import {resolve,getMedia,PlaybackError,kuwoSearch,kuwoLyric} from './playback.mjs';
 const page=fileURLToPath(new URL('./index.html',import.meta.url));
 const port=Number(process.env.PORT||18772);
 function send(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));}
@@ -35,6 +35,32 @@ const server=http.createServer(async(req,res)=>{
    if(partial)h['Content-Range']=`bytes ${start}-${end}/${item.size}`;
    res.writeHead(partial?206:200,h);if(req.method==='HEAD')return res.end();
    const stream=createReadStream(item.file,{start,end});stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());return stream.pipe(res);
+  }
+  if(url.pathname==='/.netlify/functions/search'){
+   const q=url.searchParams;
+   const source=q.get('source')||'kuwo';
+   const kw=(q.get('keyword')||q.get('q')||'').trim().slice(0,80);
+   if(!kw)return send(res,400,{error:'缺少搜索关键词'});
+   if(source!=='kuwo')return send(res,400,{error:'该搜索接口目前仅支持 kuwo'});
+   const limit=Math.min(60,Math.max(1,Number(q.get('limit'))||30));
+   const page=Math.max(0,Math.min(50,Number(q.get('page'))||0));
+   const rows=await kuwoSearch(kw,'',limit,page*limit);
+   return send(res,200,rows.map(r=>({
+    id:r.id,name:r.name,artist:r.artist,album:r.album,
+    pic:r.pic,
+    url:'kuwo://track?id='+r.id,
+    lrc:'/.netlify/functions/lyric?source=kuwo&id='+encodeURIComponent(r.id),
+    server:'kuwo',duration:r.dur
+   })));
+  }
+  if(url.pathname==='/.netlify/functions/lyric'){
+   const q=url.searchParams;
+   if((q.get('source')||'')!=='kuwo')return send(res,400,{error:'仅支持 kuwo'});
+   const id=q.get('id')||'';
+   if(!/^\d{1,15}$/.test(id))return send(res,400,{error:'无效的歌曲标识'});
+   const lrc=await kuwoLyric(id);
+   res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'private, max-age=3600','Access-Control-Allow-Origin':'*'});
+   return res.end(lrc);
   }
   if(url.pathname==='/.netlify/functions/playlist'){
    const p=url.searchParams;
