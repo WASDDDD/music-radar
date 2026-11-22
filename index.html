@@ -787,6 +787,27 @@ body.home-chrome-hidden header{border-bottom-color:transparent;transform:transla
 /* Keep upstream playback failures visible, including in lyrics mode. */
 .playback-notice{position:absolute;z-index:8;left:50%;bottom:calc(152px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(90%,500px);padding:12px 14px;border:1px solid #ffffff26;border-radius:16px;background:#152034f5;color:#f2f5fc;font-size:13px;line-height:1.6;box-shadow:0 8px 28px #0004}
 .playback-notice[hidden]{display:none}.playback-notice p{margin:0}.playback-notice .recovery-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.playback-notice button{border:1px solid #ffffff33;border-radius:10px;padding:7px 10px;background:#ffffff12;color:inherit;font-size:12px}.playback-notice button[hidden]{display:none}.now-page.lyrics-mode .playback-notice{bottom:calc(78px + env(safe-area-inset-bottom))}
+
+/* 底栏改为圆角悬浮卡片（MIUIX 默认皮肤；glass 皮肤有自己的一套） */
+.player:not(.is-bubble){
+  left:12px;right:12px;width:calc(100% - 24px);
+  height:calc(96px + env(safe-area-inset-bottom));
+  bottom:calc(10px + env(safe-area-inset-bottom));
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom));border:1px solid var(--line);border-radius:22px;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(20px) saturate(160%);
+  -webkit-backdrop-filter:blur(20px) saturate(160%);
+  box-shadow:0 10px 30px rgba(15,23,42,.14),0 1px 3px rgba(15,23,42,.08);
+}
+@media(prefers-color-scheme:dark){
+  .player:not(.is-bubble){background:rgba(34,36,40,.9);border-color:#3b3d42}
+}
+@media(prefers-reduced-transparency:reduce){
+  .player:not(.is-bubble){background:#fff;backdrop-filter:none;-webkit-backdrop-filter:none}
+}
+body{padding-bottom:calc(122px + env(safe-area-inset-bottom))}
+@media(min-width:900px){
+  .player:not(.is-bubble){width:min(680px,calc(100% - 32px));left:50%;right:auto;transform:translateX(-50%);bottom:12px;border-radius:22px;height:auto}
+}
 </style>
 </head>
 <body>
