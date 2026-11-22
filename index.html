@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- 仅允许本页面的音乐播放器脚本，阻止托管平台注入的推广浮层。修改脚本后须重算 SHA-256。 -->
-<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-3W3HlXSvVl9hRmkymAHukDkZWpf3K/Yuf7H8vF4heQw=' 'sha256-MguPC9RIm6+EcNAFzp87NSB/sO/F3vFqbRfx/anWGLM='; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-3W3HlXSvVl9hRmkymAHukDkZWpf3K/Yuf7H8vF4heQw=' 'sha256-myyOiQrGj6yYaN4uS/mmMAo7J+zv26+oFP5CmlGoo8Y='; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#090b12">
 <title>音乐雷达 · 中文音乐</title>
@@ -572,6 +572,7 @@ const SRCS = [
   {key:'netease', label:'网易云'},
   {key:'tencent', label:'QQ音乐'},
   {key:'kugou', label:'酷狗'},
+  {key:'kuwo', label:'酷我'},
 ];
 const CHART_TTL = 10 * 60 * 1000;
 
@@ -639,11 +640,14 @@ function readStored(key,fallback){
   try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}
 }
 function webUrl(value){
-  try{const url=new URL(value);return /^https?:$/.test(url.protocol)?url.href:'';}catch{return '';}
+  try{const url=new URL(value,location.href);return /^https?:$/.test(url.protocol)?url.href:'';}catch{return '';}
+}
+function trackUrl(value){
+  try{const url=new URL(value,location.href);return /^(https?|kuwo):$/.test(url.protocol)?url.href:'';}catch{return '';}
 }
 function savedTrack(item,source){
   if(!item)return null;
-  const url=webUrl(item.url);
+  const url=trackUrl(item.url);
   if(!url)return null;
   const params=new URL(url).searchParams;
   const server=params.get('server')||item.server||source||'';
@@ -963,7 +967,7 @@ async function doDownload(item, button, quality, signal){
   toast(quality === 'flac' ? '正在获取无损音频，文件较大请稍候…' : '正在准备音频，完成后按歌名保存');
   try {
     let downloadUrl=withQuality(item.url,quality);
-    if(['netease','tencent','kugou'].includes(playbackPlatform(item))){const result=await resolvePlayback(item,ctl.signal);downloadUrl=result.url;}
+    if(['netease','tencent','kugou','kuwo'].includes(playbackPlatform(item))){const result=await resolvePlayback(item,ctl.signal);downloadUrl=result.url;}
     const r = await fetch(downloadUrl, {signal: ctl.signal});
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.arrayBuffer();
@@ -1054,9 +1058,20 @@ async function loadSearchPage(state=searchState){
   state.loading=true;state.error='';paintSearchPager(state);
   const page=state.page+1;
   try{
-    const params=new URLSearchParams({server:state.source.key,type:'search',id:state.keyword,
-      limit:String(state.size),page:String(page)});
-    const {data,host}=await api(params.toString(),12000,{allowEmpty:true,host:state.host});
+    let data,host=state.host;
+    if(state.source.key==='kuwo'){
+      const qs=new URLSearchParams({source:'kuwo',keyword:state.keyword,limit:String(state.size),page:String(page-1)});
+      const r=await fetch('/.netlify/functions/search?'+qs,{cache:'no-store'});
+      if(!r.ok)throw Error('HTTP '+r.status);
+      const arr=await r.json();
+      if(!Array.isArray(arr))throw Error('接口返回格式错误');
+      data=arr;host=null;
+    }else{
+      const params=new URLSearchParams({server:state.source.key,type:'search',id:state.keyword,
+        limit:String(state.size),page:String(page)});
+      const res=await api(params.toString(),12000,{allowEmpty:true,host:state.host});
+      data=res.data;host=res.host;
+    }
     if(searchState!==state||state.request!==viewRequest)return;
     const seen=new Set(state.items.map(it=>searchSongKey(it,state.source.key)));
     const added=[];
@@ -1262,7 +1277,7 @@ audio.addEventListener('timeupdate',()=>{clearTimeout(bookmarkTimer);bookmarkTim
 for(const event of ['pause','ended','pagehide','beforeunload'])window.addEventListener(event,persistBookmark);
 let playbackRequest=0,playbackController=null,playbackLoading=false,playbackFailed=false,playbackSeek=null,verifiedPlayback=null;
 function playbackPlatform(item){
-  try{return new URL(item.url).searchParams.get('server')||item.server||'';}catch{return item.server||'';}
+  try{return new URL(item.url,location.href).searchParams.get('server')||item.server||'';}catch{return item.server||'';}
 }
 function playbackNotice(message='',recover=false){
   el('playbackMessage').textContent=message;el('playbackNotice').hidden=!message;
@@ -1324,7 +1339,7 @@ async function startTrack(it,index,seconds=0){
   loadLyrics(it); markPlaying(); syncNow();
   try{
     let url=it.url;
-    if(['netease','tencent','kugou'].includes(playbackPlatform(it))){
+    if(['netease','tencent','kugou','kuwo'].includes(playbackPlatform(it))){
       playbackNotice('正在获取原曲并核验完整时长与尾段，首次播放需要稍候…');
       const result=await resolvePlayback(it,playbackController.signal);
       if(request!==playbackRequest)return;
