@@ -13,10 +13,11 @@ const server=http.createServer(async(req,res)=>{
   if(url.pathname==='/'||url.pathname==='/index.html'){
    const body=await readFile(page);res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Length':body.length});return res.end(req.method==='HEAD'?undefined:body);
   }
-  if(url.pathname==='/api/health')return send(res,200,{ready:true,mode:'verified-full-audio',sources:['netease','tencent','kugou','joox'],checks:['duration','audio-codec','full-decode','tail-decode']});
+  if(url.pathname==='/api/health')return send(res,200,{ready:true,mode:'verified-full-audio',sources:['netease','tencent','kugou','joox','kuwo'],checks:['duration','audio-codec','full-decode','tail-decode']});
   if(url.pathname==='/.netlify/functions/playback'){
    const origin=req.headers.origin;
-   if(origin&&origin!=='http://127.0.0.1:'+port&&origin!=='http://localhost:'+port)return send(res,403,{error:'Origin not allowed'});
+   if(origin){let oh='';try{oh=new URL(origin).host}catch{}
+    if(oh&&oh!==(req.headers.host||''))return send(res,403,{error:'Origin not allowed'});}
    const result=await resolve({source:url.searchParams.get('source'),id:url.searchParams.get('id'),name:(url.searchParams.get('name')||'').slice(0,160),artist:(url.searchParams.get('artist')||'').slice(0,160)});
    return send(res,200,result);
   }
@@ -44,4 +45,4 @@ const server=http.createServer(async(req,res)=>{
   return send(res,404,{error:'Not found'});
  }catch(e){if(res.headersSent)return res.destroy();send(res,e instanceof PlaybackError?(e.code==='PARAM'?400:422):502,{error:e.message,code:e.code||'UPSTREAM'});}
 });
-server.listen(port,'127.0.0.1',()=>console.log('音乐雷达完整播放：http://127.0.0.1:'+port+'（仅本机，未上传）'));
+server.listen(port,process.env.HOST||'0.0.0.0',()=>console.log('音乐雷达完整播放：http://'+(process.env.HOST||'0.0.0.0')+':'+port));
