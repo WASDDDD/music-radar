@@ -37,7 +37,33 @@ export async function official(source,id){
   const urls=['https://api.qijieya.cn/meting/','https://api.injahow.cn/meting/'].map(host=>host+'?'+new URLSearchParams({server:'netease',type:'url',id}));
   return {source,id,name:t.name,artist:(t.artists||t.ar||[]).map(a=>a.name).join('/'),album:t.album?.name||t.al?.name||'',expectedDuration:Number(t.duration||t.dt)/1000,url:urls[0],urls};
  }
+ if(source==='kuwo'){
+  if(!/^\d{1,15}$/.test(id))throw new PlaybackError('无效的酷我歌曲标识','PARAM');
+  let info=null;
+  try{
+   const r=await fetch('http://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId='+id+'&httpsStatus=1',{headers:{'User-Agent':KUWO_UA,Referer:'https://www.kuwo.cn/'},signal:AbortSignal.timeout(16000)});
+   const d=await r.json();
+   info=d?.data?.songinfo||null;
+  }catch{}
+  const meta={source,id,name:info?.songName||'',artist:info?.artist||'',album:info?.album||'',expectedDuration:Number(info?.duration)||0,pic:info?.pic||''};
+  const u=await kuwoUrl(id);
+  return u?{...meta,url:u}:{...meta,unavailable:true,reason:'酷我未提供完整播放地址'};
+ }
  throw new PlaybackError('不支持的音乐源','PARAM');
+}
+// 酷我歌词（供前端 loadLyrics 直接取）
+export async function kuwoLyric(id){
+ try{
+  const r=await fetch('http://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId='+id+'&httpsStatus=1',{headers:{'User-Agent':KUWO_UA,Referer:'https://www.kuwo.cn/'},signal:AbortSignal.timeout(16000)});
+  const d=await r.json();
+  const list=d?.data?.lrclist||[];
+  if(!list.length)return '';
+  return list.map(x=>{
+   const t=Number(x.time)||0;
+   const m=Math.floor(t/60),sec=(t%60).toFixed(2).padStart(5,'0');
+   return `[${String(m).padStart(2,'0')}:${sec}]${x.lineLyric||''}`;
+  }).join('\n');
+ }catch{return '';}
 }
 function command(program,args,timeout=30000){return new Promise((resolve,reject)=>{const p=spawn(program,args,{stdio:['ignore','pipe','pipe']});let out='',err='';const timer=setTimeout(()=>p.kill('SIGKILL'),timeout);p.stdout.on('data',b=>out+=b);p.stderr.on('data',b=>err+=b);p.on('error',e=>{clearTimeout(timer);reject(e);});p.on('close',code=>{clearTimeout(timer);if(code===0)resolve(out);else reject(new PlaybackError(program+' 音频核验失败: '+err.slice(-180),'INVALID_AUDIO'));});});}
 function allowedAudio(url){const u=new URL(url);return u.protocol==='https:'||u.protocol==='http:';}
@@ -88,12 +114,19 @@ const GD='http://music-api.gdstudio.xyz/api.php';
 async function gd(params,tries=4){let last=null;for(let i=0;i<tries;i++){try{const r=await fetch(GD+'?'+new URLSearchParams(params),{headers:{'User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(30000)});if(r.ok){const j=await r.json();if(Array.isArray(j)?j.length:j&&j.url)return j;last=j;}}catch{}if(i<tries-1)await new Promise(r=>setTimeout(r,1500));}return last;}
 const KUWO_UA='okhttp/3.10.0';
 const KUWO_BAD=/ktv|伴奏|伴唱|\bdj\b|remix|cover|翻唱|纯音乐|instrumental|铃声|片段|抢听|试听|钢琴|助眠|抖音|精选|\blive\b|演唱会/i;
-async function kuwoSearch(name,artist){
-  const p=new URLSearchParams({client:'kt',all:name+' '+artist,pn:'0',rn:'20',uid:'794762523',ver:'kwplayer_ar_9.2.2.1',vipver:'1',show_copyright_off:'1',newver:'1',ft:'music',cluster:'0',strategy:'2012',encoding:'utf8',rformat:'json',vermerge:'1',mobi:'1'});
+export async function kuwoSearch(name,artist,pagesize=30,pn=0){
+  const p=new URLSearchParams({client:'kt',all:(name+' '+(artist||'')).trim(),pn:String(pn),rn:String(pagesize),uid:'794762523',ver:'kwplayer_ar_9.2.2.1',vipver:'1',show_copyright_off:'1',newver:'1',ft:'music',cluster:'0',strategy:'2012',encoding:'utf8',rformat:'json',vermerge:'1',mobi:'1'});
   try{
     const r=await fetch('http://search.kuwo.cn/r.s?'+p,{headers:{'User-Agent':KUWO_UA},signal:AbortSignal.timeout(16000)});
     const d=JSON.parse((await r.text()).replace(/'/g,'"'));
-    return (d.abslist||[]).map(x=>({id:String(x.MUSICRID||'').replace('MUSIC_',''),name:(x.NAME||'').replace(/&nbsp;/g,' ').trim(),artist:(x.ARTIST||'').replace(/&nbsp;/g,' ').trim(),dur:Number(x.DURATION)||0}));
+    return (d.abslist||[]).map(x=>({
+     id:String(x.MUSICRID||'').replace('MUSIC_',''),
+     name:(x.NAME||x.SONGNAME||'').replace(/&nbsp;/g,' ').trim(),
+     artist:(x.ARTIST||'').replace(/&nbsp;/g,' ').trim(),
+     album:(x.ALBUM||'').replace(/&nbsp;/g,' ').trim(),
+     dur:Number(x.DURATION)||0,
+     pic:x.web_albumpic_short?('https://img1.kuwo.cn/star/albumcover/'+String(x.web_albumpic_short).replace(/^\//,'')):''
+    }));
   }catch{return [];}
 }
 async function kuwoUrl(rid){
