@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- 仅允许本页面的音乐播放器脚本，阻止托管平台注入的推广浮层。修改脚本后须重算 SHA-256。 -->
-<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-3W3HlXSvVl9hRmkymAHukDkZWpf3K/Yuf7H8vF4heQw=' 'sha256-ZOKvsgo0AezxcvbBaO7LCCnExwAF6Gj6aq9Td/ciq3A='; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-3W3HlXSvVl9hRmkymAHukDkZWpf3K/Yuf7H8vF4heQw=' 'sha256-vVc7sWbEKRUbMKCR36/LrhimUkpOCKXnWv+xKaSphI4='; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#090b12">
 <title>音乐雷达 · 中文音乐</title>
@@ -437,6 +437,28 @@ body{padding-bottom:calc(122px + env(safe-area-inset-bottom))}
 .now-head #nowClose,.now-head #nowDownload,.now-tabs button{outline:none!important}
 .now-head #nowClose:focus,.now-head #nowDownload:focus,.now-tabs button:focus{outline:none!important;box-shadow:none!important}
 
+
+/* ===== 底部控制区照汽水：5 键 + 循环/列表面板 ===== */
+.now-page .now-controls{gap:26px;align-items:center}
+.now-page .now-controls .ctl-side{font-size:22px!important;color:#cdbbaF!important;width:34px;min-width:34px}
+.now-page .now-controls #nowLoop[aria-pressed="true"]{color:#ff7a45!important;text-shadow:0 0 12px #ff5a3688}
+.now-page.lyrics-mode .now-controls{gap:clamp(20px,8vw,40px)}
+.now-page.lyrics-mode .now-controls .ctl-side{font-size:18px!important;width:32px;min-width:32px;color:#c3ab9c!important}
+/* 播放队列面板 */
+.queue-sheet{position:fixed;left:0;right:0;bottom:0;z-index:75;background:rgba(24,16,12,.97);border-top:1px solid #ff8a4c33;border-radius:20px 20px 0 0;padding:14px 16px calc(16px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .3s cubic-bezier(.2,.75,.25,1);box-shadow:0 -10px 34px #0009;max-height:64vh;display:flex;flex-direction:column}
+.queue-sheet.on{transform:translateY(0)}
+.queue-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;color:#f3e2d7}
+.queue-head strong{font-size:15px;font-weight:600}
+.queue-head span{font-size:12px;color:#b79f90;flex:1}
+.queue-head button{border:0;background:transparent;color:#cdb7a8;font-size:18px;padding:2px 8px}
+.queue-list{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.queue-item{display:flex;align-items:center;gap:10px;width:100%;padding:10px 8px;border:0;border-radius:10px;background:transparent;color:#e8d6cb;text-align:left;font-size:13px}
+.queue-item .qi-no{width:20px;color:#a98f80;font-size:12px;flex:none}
+.queue-item .qi-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.queue-item .qi-art{font-size:11px;color:#9c8477;max-width:40%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.queue-item.cur{background:#ff5a3620;color:#ffb08a}
+.queue-item.cur .qi-no{color:#ff8a4c}
+
 </style>
 </head>
 <body>
@@ -509,7 +531,7 @@ body{padding-bottom:calc(122px + env(safe-area-inset-bottom))}
     </div>
   </div>
   <div class="playback-notice" id="playbackNotice" role="status" aria-live="polite" hidden><p id="playbackMessage"></p><div class="recovery-actions" id="playbackActions" hidden><button id="retryPlayback" type="button">重试当前音源</button><button id="findNetease" type="button">去网易云查找同名歌曲</button></div></div>
-  <div class="now-bottom"><input id="nowSeek" type="range" min="0" max="1000" value="0" aria-label="播放进度"><div class="now-time"><span id="nowCur">0:00</span><span id="nowDur">0:00</span></div><div class="now-controls"><button id="nowPrev" aria-label="上一首">❮❮</button><button id="nowPlay" class="main-play" aria-label="播放">▶</button><button id="nowNext" aria-label="下一首">❯❯</button></div></div>
+  <div class="now-bottom"><input id="nowSeek" type="range" min="0" max="1000" value="0" aria-label="播放进度"><div class="now-time"><span id="nowCur">0:00</span><span id="nowDur">0:00</span></div><div class="now-controls"><button id="nowLoop" class="ctl-side" aria-label="循环播放" aria-pressed="false">↻</button><button id="nowPrev" aria-label="上一首">❮❮</button><button id="nowPlay" class="main-play" aria-label="播放">▶</button><button id="nowNext" aria-label="下一首">❯❯</button><button id="nowQueue" class="ctl-side" aria-label="播放列表">☰</button></div></div>
 </section>
 <div class="sheet" id="sheet">
   <div class="sh-title" id="shTitle">选择下载音质</div>
@@ -521,6 +543,10 @@ body{padding-bottom:calc(122px + env(safe-area-inset-bottom))}
     <span class="q-tag">有无损时</span>
   </button>
   <button class="cancel" id="qCancel" type="button">取消</button>
+</div>
+<div class="queue-sheet" id="queueSheet" aria-hidden="true">
+  <div class="queue-head"><strong>播放列表</strong><span id="queueCount"></span><button id="queueClose" type="button" aria-label="关闭">✕</button></div>
+  <div class="queue-list" id="queueList"></div>
 </div>
 <div class="toast" id="toast" role="status"></div>
 <dialog id="libraryDialog" class="library-dialog" aria-labelledby="libraryDialogTitle">
@@ -1207,9 +1233,21 @@ function syncNow(){
   el('lyricDockPlay').setAttribute('aria-label',audio.paused?'播放':'暂停');
   el('nowPage').classList.toggle('playing',!audio.paused); syncLyrics();
 }
+let loopMode=0; // 0 顺序 1 列表循环 2 单曲循环
+function paintLoop(){
+  const b=el('nowLoop');
+  b.setAttribute('aria-pressed',loopMode>0?'true':'false');
+  b.textContent=loopMode===2?'①':'↻';
+  b.setAttribute('aria-label',loopMode===2?'单曲循环':loopMode===1?'列表循环':'顺序播放');
+  b.style.color=loopMode>0?'':'';
+}
 function changeTrack(delta){
-  const index=playingIndex+delta;
-  if (index<0 || index>=playingQueue.length) return toast(delta<0?'已经是第一首':'已经是最后一首');
+  if(!playingQueue.length)return;
+  let index=playingIndex+delta;
+  if(index<0||index>=playingQueue.length){
+    if(loopMode===1) index=(index+playingQueue.length)%playingQueue.length;
+    else return toast(delta<0?'已经是第一首':'已经是最后一首');
+  }
   startTrack(playingQueue[index],index);
 }
 function persistBookmark(){
@@ -1320,6 +1358,23 @@ el('nowClose').onclick=closeNow;
 el('plCover').onclick=openNow; el('plTitle').parentElement.onclick=openNow;
 el('nowPlay').onclick=()=>el('play').click();
 el('nowPrev').onclick=()=>changeTrack(-1); el('nowNext').onclick=()=>changeTrack(1);
+el('nowLoop').onclick=()=>{ loopMode=(loopMode+1)%3; paintLoop(); toast(['顺序播放','列表循环','单曲循环'][loopMode]); };
+function renderQueue(){
+  const list=el('queueList'); list.innerHTML='';
+  el('queueCount').textContent=playingQueue.length+' 首';
+  playingQueue.forEach((it,i)=>{
+    const b=document.createElement('button'); b.type='button'; b.className='queue-item'+(i===playingIndex?' cur':'');
+    b.innerHTML='<span class="qi-no">'+(i===playingIndex?'▶':String(i+1).padStart(2,'0'))+'</span><span class="qi-name"></span><span class="qi-art"></span>';
+    b.querySelector('.qi-name').textContent=it.name||'未命名';
+    b.querySelector('.qi-art').textContent=it.artist||'';
+    b.onclick=()=>{ startTrack(it,i); closeQueue(); };
+    list.appendChild(b);
+  });
+}
+function openQueue(){ renderQueue(); el('queueSheet').classList.add('on'); el('queueSheet').setAttribute('aria-hidden','false'); }
+function closeQueue(){ el('queueSheet').classList.remove('on'); el('queueSheet').setAttribute('aria-hidden','true'); }
+el('nowQueue').onclick=openQueue; el('queueClose').onclick=closeQueue;
+el('queueSheet').addEventListener('click',e=>{ if(e.target===el('queueSheet'))closeQueue(); });
 el('nowDownload').onclick=()=>downloadSong(playingItem,el('nowDownload'));
 el('lyricDockPlay').onclick=()=>el('play').click();
 el('lyricMode').onclick=()=>{
@@ -1372,7 +1427,9 @@ audio.addEventListener('timeupdate', ()=>{
   el('dur').textContent = fmt(d);
 });
 audio.addEventListener('ended', ()=>{
+  if(loopMode===2){ audio.currentTime=0; playAudio(playbackRequest); return; }
   if (playingIndex >= 0 && playingIndex + 1 < playingQueue.length) changeTrack(1);
+  else if(loopMode===1 && playingQueue.length) startTrack(playingQueue[0],0);
 });
 audio.addEventListener('error', ()=>{
   if(!playingItem||!audio.getAttribute('src')||playbackLoading)return;
