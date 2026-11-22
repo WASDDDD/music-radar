@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, writeFile, readFile, stat } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
+import { encryptQuery as kwEncrypt } from './kwDES.mjs';
 const CACHE=process.env.MUSIC_CACHE||'/root/workspace/run/music-playback-research/verified-cache';
 await mkdir(CACHE,{recursive:true});
 const results=new Map(),pending=new Map(),media=new Map();
@@ -85,6 +86,24 @@ function serveFromCache(entry){
 }
 const GD='http://music-api.gdstudio.xyz/api.php';
 async function gd(params,tries=4){let last=null;for(let i=0;i<tries;i++){try{const r=await fetch(GD+'?'+new URLSearchParams(params),{headers:{'User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(30000)});if(r.ok){const j=await r.json();if(Array.isArray(j)?j.length:j&&j.url)return j;last=j;}}catch{}if(i<tries-1)await new Promise(r=>setTimeout(r,1500));}return last;}
+const KUWO_UA='okhttp/3.10.0';
+const KUWO_BAD=/ktv|伴奏|伴唱|\bdj\b|remix|cover|翻唱|纯音乐|instrumental|铃声|片段|抢听|试听|钢琴|助眠|抖音|精选|\blive\b|演唱会/i;
+async function kuwoSearch(name,artist){
+  const p=new URLSearchParams({client:'kt',all:name+' '+artist,pn:'0',rn:'20',uid:'794762523',ver:'kwplayer_ar_9.2.2.1',vipver:'1',show_copyright_off:'1',newver:'1',ft:'music',cluster:'0',strategy:'2012',encoding:'utf8',rformat:'json',vermerge:'1',mobi:'1'});
+  try{
+    const r=await fetch('http://search.kuwo.cn/r.s?'+p,{headers:{'User-Agent':KUWO_UA},signal:AbortSignal.timeout(16000)});
+    const d=JSON.parse((await r.text()).replace(/'/g,'"'));
+    return (d.abslist||[]).map(x=>({id:String(x.MUSICRID||'').replace('MUSIC_',''),name:(x.NAME||'').replace(/&nbsp;/g,' ').trim(),artist:(x.ARTIST||'').replace(/&nbsp;/g,' ').trim(),dur:Number(x.DURATION)||0}));
+  }catch{return [];}
+}
+async function kuwoUrl(rid){
+  const q='user=0&corp=kuwo&source=kwplayer_ar_5.1.0.0_B_jiakong_vh.apk&p2p=1&type=convert_url2&sig=0&format=mp3&rid='+rid;
+  try{
+    const r=await fetch('http://mobi.kuwo.cn/mobi.s?f=kuwo&q='+encodeURIComponent(kwEncrypt(q)),{headers:{'User-Agent':KUWO_UA},signal:AbortSignal.timeout(16000)});
+    const m=(await r.text()).match(/http[^\s$"]+/);
+    return m?m[0]:null;
+  }catch{return null;}
+}
 async function alternative(meta,input){
  const name=meta.name||input.name,artist=meta.artist||input.artist;
  if(!name||!artist||!meta.expectedDuration)return null;
@@ -145,7 +164,38 @@ async function alternative(meta,input){
    }
   }catch{}
  }
+ // 酷我兜底：DES 加密 convert_url2 可拿到完整音频（网易/QQ/酷狗付费曲的主要出路）
+ try{
+  const rows=await kuwoSearch(name,artist);
+  const exp=Number(meta.expectedDuration)||0;
+  const ktol=exp?Math.max(8,exp*.05):0;
+  const firstTok=artistSet(artist).split('|').filter(Boolean)[0]||'';
+  const cand=rows.filter(r=>{
+   if(!r.id||KUWO_BAD.test(r.name))return false;
+   if(!looseName(r.name,name))return false;
+   if(firstTok&&!artistSet(r.artist).split('|').includes(firstTok))return false;
+   if(exp&&(!r.dur||Math.abs(r.dur-exp)>ktol))return false;
+   return true;
+  }).sort((a,b)=>exp?Math.abs(a.dur-exp)-Math.abs(b.dur-exp):b.dur-a.dur);
+  for(const row of cand.slice(0,3)){
+   const u=await kuwoUrl(row.id);
+   if(!u)continue;
+   try{
+    return await download({source:'kuwo',id:String(row.id),name:row.name,artist:row.artist,album:'',url:u,headers:{'User-Agent':KUWO_UA},expectedDuration:exp||row.dur,durationTolerance:ktol||8,substituted:true});
+   }catch{}
+  }
+ }catch{}
  return null;
+}
+// 官方接口拿不到元数据时，用酷我搜索反推一个合理时长，供兜底匹配使用
+async function durationHint(name,artist){
+ try{
+  const rows=await kuwoSearch(name,artist);
+  const firstTok=artistSet(artist).split('|').filter(Boolean)[0]||'';
+  const cand=rows.filter(r=>r.dur&&!KUWO_BAD.test(r.name)&&looseName(r.name,name)&&(!firstTok||artistSet(r.artist).split('|').includes(firstTok)));
+  if(!cand.length)return 0;
+  return cand.sort((a,b)=>b.dur-a.dur)[0].dur;
+ }catch{return 0;}
 }
 export async function resolve(input){
  const {source,id}=input,key=source+':'+id;
@@ -154,11 +204,26 @@ export async function resolve(input){
  if(results.has(key))return results.get(key);
  if(pending.has(key))return pending.get(key);
  const task=(async()=>{
-  const meta=await official(source,id);let failure;
-  if(!meta.unavailable){for(const url of meta.urls||[meta.url]){try{const value=await download({...meta,url});results.set(key,value);return value;}catch(e){failure=e;}}}
+  let meta,failure;
+  try{
+   meta=await official(source,id);
+  }catch(e){
+   // 官方接口不可用时也要继续走跨源兜底，而不是直接失败
+   const hint=input.name&&input.artist?await durationHint(input.name,input.artist):0;
+   meta={source,id,name:input.name||'',artist:input.artist||'',album:'',expectedDuration:hint,urls:[],unavailable:true,reason:String(e&&e.message||e).slice(0,80)};
+   failure=e;
+  }
+  // 时长基准修正：官方缺失时长或给出短版本时，用同名同歌手最长候选作为目标时长
+  if(input.name&&input.artist){
+   const hint=await durationHint(input.name,input.artist);
+   if(hint&&(!meta.expectedDuration||meta.expectedDuration<hint*0.75))meta.expectedDuration=hint;
+  }
+  if(!meta.unavailable){
+   for(const url of meta.urls||[meta.url]){try{const value=await download({...meta,url});results.set(key,value);return value;}catch(e){failure=e;}}
+  }
   const alt=await alternative(meta,input).catch(()=>null);
   if(alt){results.set(key,alt);return alt;}
-  throw failure||new PlaybackError(meta.reason+'；未找到歌手、曲名和时长一致的免费完整音源','RIGHTS_REQUIRED');
+  throw failure||new PlaybackError((meta.reason||'未找到可用音源')+'；未找到歌手、曲名和时长一致的免费完整音源','RIGHTS_REQUIRED');
  })();
  pending.set(key,task);try{return await task;}finally{pending.delete(key);}
 }
