@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, writeFile, stat } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, stat } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 const CACHE=process.env.MUSIC_CACHE||'/root/workspace/run/music-playback-research/verified-cache';
@@ -64,6 +64,7 @@ async function download(meta){
  await command('ffmpeg',['-v','error','-xerror','-sseof','-8','-i',file,'-t','5','-vn','-f','null','-']);
  const codec=info.streams.find(s=>s.codec_type==='audio').codec_name;
  media.set(token,{file,size,mime:codec==='mp3'?'audio/mpeg':codec==='flac'?'audio/flac':'audio/mp4'});
+ try{manifest[canonKey(meta.name,meta.artist)]={file,size,mime:codec==='mp3'?'audio/mpeg':codec==='flac'?'audio/flac':'audio/mp4',duration,expectedDuration:meta.expectedDuration,source:meta.source,id:meta.id,name:meta.name,artist:meta.artist,album:meta.album||'',codec,substituted:!!meta.substituted};await saveManifest();}catch{}
  return {source:meta.source,id:meta.id,name:meta.name,artist:meta.artist,album:meta.album||'',duration,expectedDuration:meta.expectedDuration,size,codec,verifiedFull:true,fullDecoded:true,tailDecoded:true,url:'/media/'+token,substituted:!!meta.substituted};
 }
 const normalize=x=>String(x||'').normalize('NFKC').toLowerCase().replace(/[\s·.,，。!?！？、_\-]/g,'');
@@ -72,6 +73,16 @@ const T2S={'澗':'涧','愛':'爱','聽':'听','夢':'梦','傷':'伤','淚':'�
 const fold=x=>normalize(x).replace(/[（(【\[][^）)】\]]*[）)】\]]/g,'').replace(/[（(【\[]/g,'');
 const toSimp=x=>[...x].map(c=>T2S[c]||c).join('');
 const looseName=(a,b)=>{const x=fold(a),y=fold(b);if(!x||!y)return false;if(x===y||x.includes(y)||y.includes(x))return true;const tx=toSimp(x),ty=toSimp(y);return tx===ty||tx.includes(ty)||ty.includes(tx);};
+const MANIFEST=path.join(CACHE,'manifest.json');
+let manifest={};
+try{manifest=JSON.parse(await readFile(MANIFEST,'utf8'));}catch{}
+const canonKey=(name,artist)=>toSimp(fold(name))+'::'+artistSet(artist);
+async function saveManifest(){try{await writeFile(MANIFEST,JSON.stringify(manifest));}catch{}}
+function serveFromCache(entry){
+ const token=randomBytes(18).toString('hex');
+ media.set(token,{file:entry.file,size:entry.size,mime:entry.mime});
+ return {source:entry.source||'cache',id:entry.id||'',name:entry.name,artist:entry.artist,album:entry.album||'',duration:entry.duration,expectedDuration:entry.expectedDuration,size:entry.size,codec:entry.codec||'mp3',verifiedFull:true,fullDecoded:true,tailDecoded:true,url:'/media/'+token,substituted:!!entry.substituted,cached:true};
+}
 const GD='http://music-api.gdstudio.xyz/api.php';
 async function gd(params,tries=4){let last=null;for(let i=0;i<tries;i++){try{const r=await fetch(GD+'?'+new URLSearchParams(params),{headers:{'User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(30000)});if(r.ok){const j=await r.json();if(Array.isArray(j)?j.length:j&&j.url)return j;last=j;}}catch{}if(i<tries-1)await new Promise(r=>setTimeout(r,1500));}return last;}
 async function alternative(meta,input){
@@ -138,6 +149,8 @@ async function alternative(meta,input){
 }
 export async function resolve(input){
  const {source,id}=input,key=source+':'+id;
+ const ck=(input.name&&input.artist)?canonKey(input.name,input.artist):'';
+ if(ck&&manifest[ck]&&manifest[ck].file){try{await stat(manifest[ck].file);return serveFromCache(manifest[ck]);}catch{}}
  if(results.has(key))return results.get(key);
  if(pending.has(key))return pending.get(key);
  const task=(async()=>{
