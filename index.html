@@ -374,6 +374,69 @@ body{padding-bottom:calc(122px + env(safe-area-inset-bottom))}
 @media(min-width:900px){
   .player:not(.is-bubble){width:min(680px,calc(100% - 32px));left:50%;right:auto;transform:translateX(-50%);bottom:12px;border-radius:22px;height:auto}
 }
+
+/* ===== 汽水风格：橙红暖色播放页 ===== */
+.now-page {
+  --hot:#ff5a36; --hot2:#ff8a4c; --hot-soft:#ffb08a;
+}
+/* 暖色氛围叠加 */
+.now-ambient::after{background:linear-gradient(180deg,#1a0d0899 0%,#1c0e0894 45%,#0a0605f5 100%)!important}
+/* 顶部收起/下载 文字：暖白 */
+.now-head #nowClose,.now-head #nowDownload{color:#f0dcd0}
+.now-tabs button{color:#b09889}.now-tabs button.on{color:#ffb08a}
+.now-tabs button::after{background:#ff7a45}
+/* 主播放键：橙红实心圆 */
+.now-controls .main-play{
+  background:linear-gradient(135deg,#ff8a4c,#f4511e)!important;
+  color:#fff!important;box-shadow:0 8px 26px #f4511e66!important
+}
+.now-page:not(.lyrics-mode) .now-controls .main-play{background:linear-gradient(135deg,#ff8a4c,#f4511e)!important;color:#fff!important;box-shadow:0 8px 26px #f4511e66!important}
+.now-page.lyrics-mode .now-controls .main-play{background:linear-gradient(135deg,#ff8a4c,#f4511e)!important;color:#fff!important;box-shadow:0 6px 20px #f4511e55!important}
+.lyric-dock #lyricDockPlay{background:linear-gradient(135deg,#ff8a4c,#f4511e)!important;color:#fff!important}
+/* 上下首：纯白图标，无框无底 */
+.now-page:not(.lyrics-mode) .now-controls button{border:0!important;background:transparent!important;box-shadow:none!important;color:#f3e9e2!important;font-size:28px!important}
+.now-page:not(.lyrics-mode) .now-controls button:active{background:#ffffff12!important;color:#fff!important}
+.now-page.lyrics-mode .now-controls button{color:#e8d6cc!important}
+/* 进度条：细 + 橙红填充 + 白点 */
+.now-page:not(.lyrics-mode) .now-bottom input::-webkit-slider-runnable-track{background:linear-gradient(90deg,#ff8a4c 0%,#ff5a36 var(--seek-fill,0%),#6a554b var(--seek-fill,0%),#6a554b 100%)!important}
+.now-page:not(.lyrics-mode) .now-bottom input::-webkit-slider-thumb{background:#fff!important;box-shadow:0 1px 6px #0009!important;width:12px!important;height:12px!important;margin-top:-4.5px!important}
+.now-page:not(.lyrics-mode) .now-bottom input::-moz-range-progress{background:#ff5a36!important}
+.now-page:not(.lyrics-mode) .now-bottom input::-moz-range-thumb{background:#fff!important}
+.now-time{color:#d8c3b7!important}
+/* 充电唱片唱臂：暖铜色 */
+.tonearm{border-left-color:#e0b79f!important}
+.tonearm::before{background:#e9c3aa!important;border-color:#5a4136!important;box-shadow:0 0 0 8px #3a2820aa!important}
+.tonearm i{background:linear-gradient(90deg,#a9785c,#e9c3aa 45%,#8a5e47)!important}
+.tonearm b{background:#f0dccb!important}
+/* 歌名/歌手/徽章/心形 */
+.now-title{color:#fff}
+.now-artist{color:#d8bfb1}
+.track-badges span{background:#ffffff10;border-color:#ffffff1c;color:#e7d3c7}
+.track-title-line .heart,.lyrics-head .heart{color:#f0c9b8}
+.track-title-line .heart.liked,.lyrics-head .heart.liked{color:#ff6a4d!important;border-color:#ff6a4d66;background:#ff5a3622;text-shadow:0 0 14px #ff5a3688}
+/* 歌词：暗字 + 橙红逐字高亮 */
+.lyrics p{color:#9c897e}
+.lyrics p.active{color:#ffb08a}
+.lyrics p.active::before{background:#ff6a42!important;box-shadow:0 0 14px #ff5a36!important}
+.lyric-word{background:linear-gradient(90deg,#ffd0b3 var(--word-progress,0%),#a0725c var(--word-progress,0%))!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important}
+.lyrics p:not(.active) .lyric-word{background:linear-gradient(90deg,#b09a8d,#866e62)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important}
+.lyric-dock{border-color:#ff8a4c33!important;background:rgba(46,26,18,.82)!important}
+.lyrics-head strong{color:#fff}.lyrics-head small{color:#cbb4a6}
+
+
+/* 唱片改为暖棕木质，收起按钮去蓝框 */
+.now-page .record{
+  background:radial-gradient(circle at 50% 50%,#1a0f0a 0 13%,transparent 13.5%),
+    repeating-radial-gradient(circle at center,#3a2418 0 2px,#5c3b26 2.6px 3.5px,#2e1c12 4px 5px)!important;
+  border-color:#a5704faa!important;
+  box-shadow:0 22px 70px #000b,0 0 0 12px #5c3b2633,0 0 80px #ff6a3655!important
+}
+.now-page .record::before{border-color:#d59a725c!important;box-shadow:inset 0 0 24px #ffab8225,0 0 22px #ff6a3644!important}
+.now-page .record::after{background:#f0dccb!important;box-shadow:0 0 0 7px #6b3f28,0 0 16px #ffab8288!important}
+.now-page .record img{border-color:#1a0f0a!important;box-shadow:0 0 0 2px #d59a7266,0 0 18px #0008!important;background:#3a2418!important}
+.now-head #nowClose,.now-head #nowDownload,.now-tabs button{outline:none!important}
+.now-head #nowClose:focus,.now-head #nowDownload:focus,.now-tabs button:focus{outline:none!important;box-shadow:none!important}
+
 </style>
 </head>
 <body>
