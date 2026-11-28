@@ -29,7 +29,7 @@ final class CoreTests: XCTestCase {
     }
 
     func testKuwoSearch() throws {
-        var rows: [Kuwo.Song] = []
+        var rows: [MRSong] = []
         for _ in 0..<3 where rows.isEmpty {
             rows = Kuwo.search("晴天", "周杰伦", pagesize: 5, pn: 0)
             if rows.isEmpty { Thread.sleep(forTimeInterval: 1.5) }
