@@ -25,7 +25,7 @@ final class CoreTests: XCTestCase {
     func testKuwoSearchAndPlayback() throws {
         let rows = Kuwo.search("晴天", "周杰伦", pagesize: 5, pn: 0)
         XCTAssertFalse(rows.isEmpty)
-        guard let first = rows.first(where: { $0.name.contains("晴天") }) else {
+        guard let first = rows.first(where: { $0.name.contains("晴天") && $0.dur > 200 }) else {
             XCTFail("no 晴天"); return
         }
         var input = MRPlaybackInput()

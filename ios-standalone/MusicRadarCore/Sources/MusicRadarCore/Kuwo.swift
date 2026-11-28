@@ -49,6 +49,8 @@ public enum Kuwo {
                 s.dur = num(o["DURATION"])
                 let pic = o["web_albumpic_short"] as? String ?? ""
                 if !pic.isEmpty { s.pic = "https://img1.kuwo.cn/star/albumcover/" + pic }
+                // 过滤铃声/试听等超短片段（酷我搜索会混入 2–3 秒的铃声资源）
+                if s.dur > 0 && s.dur < 30 { return nil }
                 return (!s.id.isEmpty && !s.name.isEmpty) ? s : nil
             }
         } catch { return [] }
