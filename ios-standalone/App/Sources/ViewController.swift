@@ -5,6 +5,7 @@ import MusicRadarCore
 
 final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     private let port: UInt16
+    override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
     private var webView: WKWebView!
 
     init(port: UInt16) {

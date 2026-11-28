@@ -12,6 +12,14 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
             let vc = ViewController(port: port)
             let nav = UINavigationController(rootViewController: vc)
             nav.navigationBar.prefersLargeTitles = false
+            let ap = UINavigationBarAppearance()
+            ap.configureWithOpaqueBackground()
+            ap.backgroundColor = UIColor(red: 0.035, green: 0.043, blue: 0.07, alpha: 1)
+            ap.titleTextAttributes = [.foregroundColor: UIColor.white]
+            ap.buttonAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.white]
+            nav.navigationBar.standardAppearance = ap
+            nav.navigationBar.scrollEdgeAppearance = ap
+            nav.navigationBar.tintColor = .white
             window?.rootViewController = nav
         } catch {
             let label = UILabel()
