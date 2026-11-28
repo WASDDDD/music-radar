@@ -2393,6 +2393,8 @@ el('lyrics').addEventListener('touchstart',()=>{lyricTouchUntil=Date.now()+4000;
 el('lyrics').addEventListener('wheel',()=>{lyricTouchUntil=Date.now()+4000;},{passive:true});
 document.addEventListener('keydown',event=>{if(event.key==='Escape') closeNow();});
 for (const event of ['timeupdate','loadedmetadata','durationchange','play','pause','emptied','ended']) audio.addEventListener(event,syncNow);
+// WKWebView 在首次播放前注册的 mediaSession 动作可能被丢弃，播放开始后重新绑定一次，确保上一首/下一首/拖动进度可用。
+for (const event of ['play','playing','loadedmetadata','durationchange']) audio.addEventListener(event,()=>{ syncMediaSession(); installMediaSession(); });
 
 function play(i,seconds=0){
   const it = list[i];
@@ -2558,7 +2560,7 @@ function nativeHost(){ try{ return window.MRHost || null; }catch(e){ return null
     if (!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.mrHost)) return;
     function send(o){ try{ window.webkit.messageHandlers.mrHost.postMessage(o); }catch(e){} }
     window.MRHost = {
-      updateFull: function(t,a,p,c,d,pos,l){ send({op:'updateFull',title:t||'',artist:a||'',playing:!!p,cover:c||'',dur:d||0,pos:pos||0,liked:l?1:0}); },
+      updateFull: function(t,a,p,c,d,pos,l,qc,qi){ send({op:'updateFull',title:t||'',artist:a||'',playing:!!p,cover:c||'',dur:d||0,pos:pos||0,liked:l?1:0,qcount:qc||0,qindex:qi||0}); },
       update: function(t,a,p){ send({op:'update',title:t||'',artist:a||'',playing:!!p}); },
       idle: function(){ send({op:'idle'}); }
     };
@@ -2625,7 +2627,7 @@ function pushNativeState(){
     const cover = el('plCover').getAttribute('src') || '';
     const dur = Number.isFinite(audio.duration) ? Math.round(audio.duration*1000) : 0;
     const pos = Number.isFinite(audio.currentTime) ? Math.round(audio.currentTime*1000) : 0;
-    if (host.updateFull) host.updateFull(title, artist, playing, cover, dur, pos, !!liked);
+    if (host.updateFull) host.updateFull(title, artist, playing, cover, dur, pos, !!liked, playingQueue.length, playingIndex);
     else if (host.update) host.update(title, artist, playing);
   }catch(e){}
 }
