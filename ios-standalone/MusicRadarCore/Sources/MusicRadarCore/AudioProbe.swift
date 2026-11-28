@@ -20,7 +20,8 @@ public enum AudioProbe {
         let sr = fmt.sampleRate
         guard sr > 0, f.length > 0 else { return nil }
         let total = f.length
-        guard let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: 8192) else { return nil }
+        // 大缓冲显著减少整首解码的 read() 次数（对手机上的首次播放更友好）
+        guard let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: 65536) else { return nil }
         var frames: AVAudioFramePosition = 0
         do {
             while true {
