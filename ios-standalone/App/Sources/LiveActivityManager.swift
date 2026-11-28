@@ -23,21 +23,34 @@ final class LiveActivityManager {
 
         let sig = "\(title)|\(artist)|\(playing)|\(Int(duration))"
 
-        if let act = activity, act.activityState == .active {
-            // 同一首歌且进度变化不大时跳过，避免过高频更新被系统限流。
-            if sig == lastSig && Date().timeIntervalSince(lastUpdate) < 2.5 { return }
-            lastSig = sig
-            lastUpdate = Date()
-            Task { try? await act.update(ActivityContent(state: state, staleDate: nil)) }
-            return
+        if let act = activity {
+            if act.activityState == .active {
+                // 同一首歌且进度变化不大时跳过，避免过高频更新被系统限流。
+                if sig == lastSig && Date().timeIntervalSince(lastUpdate) < 2.5 { return }
+                lastSig = sig
+                lastUpdate = Date()
+                Task { try? await act.update(ActivityContent(state: state, staleDate: nil)) }
+                return
+            }
+            // 已结束/失效的活动先清掉，避免 UI 卡在旧状态。
+            activity = nil
         }
 
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            print("[LiveActivity] disabled by system settings")
+            return
+        }
         let attrs = MusicRadarAttributes(name: "MusicRadar")
-        activity = try? Activity.request(
-            attributes: attrs,
-            content: ActivityContent(state: state, staleDate: nil),
-            pushType: nil
-        )
+        do {
+            activity = try Activity.request(
+                attributes: attrs,
+                content: ActivityContent(state: state, staleDate: nil),
+                pushType: nil
+            )
+            print("[LiveActivity] requested id=\(activity?.id ?? "nil")")
+        } catch {
+            print("[LiveActivity] request failed: \(error)")
+        }
         lastSig = sig
         lastUpdate = Date()
     }
@@ -49,10 +62,9 @@ final class LiveActivityManager {
         if let act = activity {
             activity = nil
             Task { await act.end(nil, dismissalPolicy: .immediate) }
-        } else {
-            for a in Activity<MusicRadarAttributes>.activities {
-                Task { await a.end(nil, dismissalPolicy: .immediate) }
-            }
+        }
+        for a in Activity<MusicRadarAttributes>.activities {
+            Task { await a.end(nil, dismissalPolicy: .immediate) }
         }
     }
 }
