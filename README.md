@@ -1,5 +1,11 @@
 # 音乐雷达：完整音频核验本地版
 
+## iOS 完全独立版（2026-11-28）
+
+- 未签名 IPA（390534 字节，sha256 `eecb78512cd88b4ec8134d2022b24de54a60935b298f8ebefad1c719f36ce195`）：[GitHub Releases](https://github.com/WASDDDD/music-radar/releases/tag/ios-standalone-v1.0)
+- 源码与构建说明：[ios-standalone/README.md](ios-standalone/README.md)
+- App 内置 Swift 本地 HTTP 服务与前端页面，不依赖 Android 手机、电脑或外部后端；需用 Sideloadly/AltStore 自签安装。
+
 本机地址：http://127.0.0.1:18772/
 
 这是可运行的本地成品。GitHub、Netlify 和此前的正式页面没有更新。不要用旧线上网址检查本次改动。
