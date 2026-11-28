@@ -16,7 +16,6 @@ public enum Http {
         req.timeoutInterval = Double(timeoutMs) / 1000.0
         req.setValue(ua, forHTTPHeaderField: "User-Agent")
         if let referer = referer { req.setValue(referer, forHTTPHeaderField: "Referer") }
-        req.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
         let sem = DispatchSemaphore(value: 0)
         var result: Result<MRHttpResponse, Error>?
         let task = session.dataTask(with: req) { data, resp, err in

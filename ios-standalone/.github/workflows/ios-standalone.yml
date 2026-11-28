@@ -1,0 +1,30 @@
+name: Build standalone iOS IPA
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift package tests
+        run: |
+          set -o pipefail
+          cd ios-standalone/MusicRadarCore
+          swift test 2>&1 | tee /tmp/swift-test.log
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build app
+        run: |
+          cd ios-standalone/App
+          xcodegen generate
+          xcodebuild -project MusicRadar.xcodeproj -scheme MusicRadar -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" ONLY_ACTIVE_ARCH=NO
+      - name: Package unsigned IPA
+        run: |
+          cd ios-standalone/App
+          mkdir -p out/Payload
+          cp -R build/Build/Products/Release-iphoneos/MusicRadar.app out/Payload/
+          cd out && zip -r MusicRadar-standalone-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MusicRadar-standalone-ipa
+          path: ios-standalone/App/out/MusicRadar-standalone-unsigned.ipa

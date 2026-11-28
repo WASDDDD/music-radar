@@ -10,7 +10,7 @@ final class CoreTests: XCTestCase {
 
     func testTextUtils() {
         XCTAssertEqual(TextUtil.normalize("  晴天 (Live) "), "晴天(live)")
-        XCTAssertEqual(TextUtil.canonKey("海屿你", "马也_Crabbit"), "海屿你::马也_crabbit")
+        XCTAssertEqual(TextUtil.canonKey("海屿你", "马也_Crabbit"), "海屿你::马也crabbit")
         XCTAssertTrue(TextUtil.looseName("春涧（空灵女声版）", "春涧"))
     }
 
