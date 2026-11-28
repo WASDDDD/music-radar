@@ -25,6 +25,8 @@ final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate
         cfg.allowsInlineMediaPlayback = true
         cfg.mediaTypesRequiringUserActionForPlayback = []
         cfg.preferences.javaScriptCanOpenWindowsAutomatically = false
+        // 允许 WKWebView 在 App 进入后台后继续播放音频（私有键，自签包可用）
+        cfg.preferences.setValue(true, forKey: "_allowBackgroundMediaPlayback")
         let wv = WKWebView(frame: .zero, configuration: cfg)
         wv.navigationDelegate = self
         wv.uiDelegate = self
@@ -42,13 +44,27 @@ final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate
         webView = wv
         load()
 
+        configureAudioSession()
+        NotificationCenter.default.addObserver(self, selector: #selector(configureAudioSession),
+                                               name: UIApplication.didEnterBackgroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(configureAudioSession),
+                                               name: UIApplication.willEnterForegroundNotification, object: nil)
+    }
+
+    @objc private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setCategory(.playback, mode: .default, options: [])
             try session.setActive(true)
         } catch {
             // 音频会话失败不阻塞页面
         }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        configureAudioSession()
+        UIApplication.shared.beginReceivingRemoteControlEvents()
     }
 
     override func viewDidLayoutSubviews() {
