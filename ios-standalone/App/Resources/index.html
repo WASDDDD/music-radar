@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- 仅允许本页面的音乐播放器脚本，阻止托管平台注入的推广浮层。修改脚本后须重算 SHA-256。 -->
-<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-0eYTyaFYCwlIdpHCkGtTkuhMrhYMgoKd0nxGsX96VfE=' 'sha256-uh90V8cgHCQFbp3rJaZWIqp3IbkamlWF2HgMtg8Wtgw=' 'sha256-9thQOp4Am3Y+7OieSI6UiG+9O1WyN+KJ+t4akxKE4Xs=' 'sha256-2gsm/AM3mwiFD7fvTRkct7BpD7G//pUlK4hWga7pOBI=' 'sha256-nIYhyWijdbozY8sG2Z6nETBP0pf4u7iadidfkZhOfMM='; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-0eYTyaFYCwlIdpHCkGtTkuhMrhYMgoKd0nxGsX96VfE=' 'sha256-gQfXK62YNBQoFaSky6VeuIRBKXAOx4dh2oCRAyauS6E=' 'sha256-9thQOp4Am3Y+7OieSI6UiG+9O1WyN+KJ+t4akxKE4Xs=' 'sha256-2gsm/AM3mwiFD7fvTRkct7BpD7G//pUlK4hWga7pOBI=' 'sha256-nIYhyWijdbozY8sG2Z6nETBP0pf4u7iadidfkZhOfMM='; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#090b12">
 <title>音乐雷达 · 中文音乐</title>
@@ -2031,6 +2031,8 @@ function openNow(){
     page.classList.add('on'); page.setAttribute('aria-hidden','false');
     document.body.classList.add('page-open');
     document.body.style.overflow = 'hidden';
+    const np=el('nowPages');
+    if(np) setNowPanel(np.scrollLeft>(np.clientWidth||1)/2?1:0,true);
     syncNow();
   };
 
@@ -2381,14 +2383,27 @@ let likedTrack='',liked=false;
 function paintLike(){document.querySelectorAll('.heart').forEach(button=>{button.textContent=liked?'♥':'♡';button.classList.toggle('liked',liked);button.setAttribute('aria-label',liked?'取消喜欢':'喜欢这首歌');});}
 document.querySelectorAll('.heart').forEach(button=>button.onclick=()=>{liked=!liked;paintLike();});
 el('nowSeek').oninput=()=>{ if (Number.isFinite(audio.duration)) audio.currentTime=audio.duration*Number(el('nowSeek').value)/1000; syncNow(); };
-function showPanel(index){ el('nowPages').scrollTo({left:el('nowPages').clientWidth*index,behavior:'smooth'}); }
+function showPanel(index){ setNowPanel(index,true); el('nowPages').scrollTo({left:el('nowPages').clientWidth*index,behavior:'smooth'}); }
 el('coverTab').onclick=()=>showPanel(0); el('lyricsTab').onclick=()=>showPanel(1);
-el('nowPages').addEventListener('scroll',()=>{
-  const lyrics=el('nowPages').scrollLeft>el('nowPages').clientWidth/2;
+let nowPanelIndex=0, nowPanelTimer=0;
+function setNowPanel(index,force=false){
+  if(index===nowPanelIndex&&!force) return;
+  nowPanelIndex=index;
+  const lyrics=index===1;
   el('coverTab').classList.toggle('on',!lyrics); el('lyricsTab').classList.toggle('on',lyrics);
   el('nowPage').classList.toggle('lyrics-mode',lyrics);
-  syncLyrics(true);
+  if(lyrics) syncLyrics(true);
+}
+function settleNowPanel(){
+  clearTimeout(nowPanelTimer);
+  const w=el('nowPages').clientWidth||1;
+  setNowPanel(el('nowPages').scrollLeft>w*0.5?1:0);
+}
+el('nowPages').addEventListener('scroll',()=>{
+  clearTimeout(nowPanelTimer);
+  nowPanelTimer=setTimeout(settleNowPanel,90);
 },{passive:true});
+el('nowPages').addEventListener('scrollend',settleNowPanel,{passive:true});
 el('lyrics').addEventListener('touchstart',()=>{lyricTouchUntil=Date.now()+4000;},{passive:true});
 el('lyrics').addEventListener('wheel',()=>{lyricTouchUntil=Date.now()+4000;},{passive:true});
 document.addEventListener('keydown',event=>{if(event.key==='Escape') closeNow();});
