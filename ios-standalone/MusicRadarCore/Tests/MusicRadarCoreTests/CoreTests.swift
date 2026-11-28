@@ -36,16 +36,18 @@ final class CoreTests: XCTestCase {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("mr-test-tone.wav")
         try? FileManager.default.removeItem(at: url)
         let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
-        let file = try AVAudioFile(forWriting: url, settings: format.settings)
         let sr = 44100
-        for sec in 0..<15 {
-            let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(sr))!
-            buf.frameLength = AVAudioFrameCount(sr)
-            let p = buf.floatChannelData![0]
-            for i in 0..<sr {
-                p[i] = Float(sin(2.0 * Double.pi * 440.0 * Double(sec * sr + i) / Double(sr)) * 0.2)
+        try autoreleasepool {
+            let file = try AVAudioFile(forWriting: url, settings: format.settings)
+            for sec in 0..<15 {
+                let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(sr))!
+                buf.frameLength = AVAudioFrameCount(sr)
+                let p = buf.floatChannelData![0]
+                for i in 0..<sr {
+                    p[i] = Float(sin(2.0 * Double.pi * 440.0 * Double(sec * sr + i) / Double(sr)) * 0.2)
+                }
+                try file.write(from: buf)
             }
-            try file.write(from: buf)
         }
         let r = AudioProbe.probe(url)
         XCTAssertTrue(r.hasAudio)
