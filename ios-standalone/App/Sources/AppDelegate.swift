@@ -11,6 +11,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
             let port = try Backend.shared.start()
             let vc = ViewController(port: port)
             let nav = UINavigationController(rootViewController: vc)
+            nav.setNavigationBarHidden(true, animated: false)
             nav.navigationBar.prefersLargeTitles = false
             let ap = UINavigationBarAppearance()
             ap.configureWithOpaqueBackground()
