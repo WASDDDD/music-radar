@@ -9,8 +9,11 @@ private let mrBg = Color(red: 0.035, green: 0.043, blue: 0.07)
 struct MusicRadarLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: MusicRadarAttributes.self) { _ in
-            // 锁屏不展示 Live Activity 卡片，只在灵动岛展示，避免与锁屏媒体卡重复。
-            EmptyView()
+            // 锁屏不展示 Live Activity 卡片，只在灵动岛展示；透明零高度避免留下黑色空条。
+            Color.clear
+                .frame(height: 0)
+                .activityBackgroundTint(.clear)
+                .activitySystemActionForegroundColor(.clear)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
