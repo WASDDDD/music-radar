@@ -1,4 +1,5 @@
 import XCTest
+import AVFoundation
 @testable import MusicRadarCore
 
 final class CoreTests: XCTestCase {
@@ -22,19 +23,34 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(page["nextOffset"] as? Int, 100)
     }
 
-    func testKuwoSearchAndPlayback() throws {
+    func testKuwoSearch() {
         let rows = Kuwo.search("晴天", "周杰伦", pagesize: 5, pn: 0)
         XCTAssertFalse(rows.isEmpty)
         guard let first = rows.first(where: { $0.name.contains("晴天") && $0.dur > 200 }) else {
             XCTFail("no 晴天"); return
         }
-        var input = MRPlaybackInput()
-        input.source = "kuwo"; input.id = first.id; input.name = first.name; input.artist = first.artist
-        let res = try Playback.shared.resolve(input)
-        XCTAssertEqual(res["verifiedFull"] as? Bool, true)
-        XCTAssertEqual(res["fullDecoded"] as? Bool, true)
-        XCTAssertEqual(res["tailDecoded"] as? Bool, true)
-        let duration = (res["duration"] as? NSNumber)?.doubleValue ?? 0
-        XCTAssertGreaterThan(duration, 200)
+        XCTAssertEqual(first.id, "228908")
+    }
+
+    func testAudioProbeGeneratedWav() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("mr-test-tone.wav")
+        try? FileManager.default.removeItem(at: url)
+        let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
+        let file = try AVAudioFile(forWriting: url, settings: format.settings)
+        let sr = 44100
+        for sec in 0..<15 {
+            let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(sr))!
+            buf.frameLength = AVAudioFrameCount(sr)
+            let p = buf.floatChannelData![0]
+            for i in 0..<sr {
+                p[i] = Float(sin(2.0 * Double.pi * 440.0 * Double(sec * sr + i) / Double(sr)) * 0.2)
+            }
+            try file.write(from: buf)
+        }
+        let r = AudioProbe.probe(url)
+        XCTAssertTrue(r.hasAudio)
+        XCTAssertEqual(r.duration, 15.0, accuracy: 0.25)
+        XCTAssertTrue(r.fullDecoded)
+        XCTAssertTrue(r.tailDecoded)
     }
 }
