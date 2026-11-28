@@ -6,6 +6,8 @@ final class ViewController: UIViewController, WKNavigationDelegate {
     private let statusLabel = UILabel()
     private let defaultsKey = "musicRadar.serverUrl"
     private let fallbackUrl = "http://192.168.1.8:18772/"
+    private let publicUrl = "https://translated-constant-andy-grab.trycloudflare.com/"
+    private var triedPublicFallback = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -53,6 +55,7 @@ final class ViewController: UIViewController, WKNavigationDelegate {
     }
 
     private func loadServer() {
+        triedPublicFallback = false
         guard let url = URL(string: serverUrl) else { showError("服务器地址格式不正确"); return }
         statusLabel.text = "正在连接服务器…\n" + serverUrl
         statusLabel.isHidden = false
@@ -109,6 +112,15 @@ final class ViewController: UIViewController, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        let saved = UserDefaults.standard.string(forKey: defaultsKey) ?? ""
+        if saved.isEmpty && !triedPublicFallback {
+            triedPublicFallback = true
+            statusLabel.text = "局域网连接失败，尝试公网地址…"
+            if let u = URL(string: publicUrl) {
+                webView.load(URLRequest(url: u, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20))
+                return
+            }
+        }
         showError("连接失败：\(error.localizedDescription)")
     }
 }
