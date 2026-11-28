@@ -1,0 +1,26 @@
+name: Build unsigned IPA
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install xcodegen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: cd ios && xcodegen generate
+      - name: Build
+        run: |
+          cd ios
+          xcodebuild -project MusicRadar.xcodeproj -scheme MusicRadar -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" ONLY_ACTIVE_ARCH=NO
+      - name: Package IPA
+        run: |
+          mkdir -p out/Payload
+          cp -R ios/build/Build/Products/Release-iphoneos/MusicRadar.app out/Payload/
+          cd out && zip -r MusicRadar-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MusicRadar-unsigned-ipa
+          path: out/MusicRadar-unsigned.ipa

@@ -1,0 +1,25 @@
+name: MusicRadar
+options:
+  bundleIdPrefix: com.musicradar
+  deploymentTarget:
+    iOS: "13.0"
+  createIntermediateGroups: true
+targets:
+  MusicRadar:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+        excludes:
+          - Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.musicradar.app
+        PRODUCT_NAME: MusicRadar
+        INFOPLIST_FILE: Sources/Info.plist
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+        DEVELOPMENT_TEAM: ""
