@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- 仅允许本页面的音乐播放器脚本，阻止托管平台注入的推广浮层。修改脚本后须重算 SHA-256。 -->
-<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-0eYTyaFYCwlIdpHCkGtTkuhMrhYMgoKd0nxGsX96VfE=' 'sha256-epcOyKDkdLi54fcqHf18RCCVuBzMsH5rFCEplXNKbME=' 'sha256-9thQOp4Am3Y+7OieSI6UiG+9O1WyN+KJ+t4akxKE4Xs=' 'sha256-2gsm/AM3mwiFD7fvTRkct7BpD7G//pUlK4hWga7pOBI=' 'sha256-nIYhyWijdbozY8sG2Z6nETBP0pf4u7iadidfkZhOfMM='; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'sha256-0eYTyaFYCwlIdpHCkGtTkuhMrhYMgoKd0nxGsX96VfE=' 'sha256-1JobOjZGRKMAAk8qP8wnpR2fzK4ljU8VNfegANM9SXM=' 'sha256-9thQOp4Am3Y+7OieSI6UiG+9O1WyN+KJ+t4akxKE4Xs=' 'sha256-2gsm/AM3mwiFD7fvTRkct7BpD7G//pUlK4hWga7pOBI=' 'sha256-nIYhyWijdbozY8sG2Z6nETBP0pf4u7iadidfkZhOfMM='; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#090b12">
 <title>音乐雷达 · 中文音乐</title>
@@ -1180,6 +1180,7 @@ header{
 
 /* ===== v3.10 播放/歌词过渡与滚动性能优化 ===== */
 /* 页面高度不再随模式切换而变化：底部控制栏改为纯绝对定位浮层，避免滑动结束时整页重排 */
+.now-pages{scroll-snap-type:x proximity!important}
 .now-page .now-pages{margin-bottom:0!important;transition:none!important}
 .now-page:not(.lyrics-mode) .now-art{padding-bottom:calc(158px + var(--sa-bottom))!important}
 /* 歌词滚动：交给 JS 的单次 smooth 控制，禁止 CSS 对每次 scrollTo 再叠加一层动画 */
@@ -2419,7 +2420,7 @@ document.querySelectorAll('.heart').forEach(button=>button.onclick=()=>{liked=!l
 el('nowSeek').oninput=()=>{ if (Number.isFinite(audio.duration)) audio.currentTime=audio.duration*Number(el('nowSeek').value)/1000; syncNow(); };
 function showPanel(index){ el('nowPages').scrollTo({left:el('nowPages').clientWidth*index,behavior:'smooth'}); }
 el('coverTab').onclick=()=>showPanel(0); el('lyricsTab').onclick=()=>showPanel(1);
-let nowPanelIndex=0, nowPanelTimer=0;
+let nowPanelIndex=0, nowPanelTimer=0, nowPagesTouching=false, nowTouchTimer=0;
 function setNowPanel(index,force=false){
   if(index===nowPanelIndex&&!force) return;
   nowPanelIndex=index;
@@ -2430,6 +2431,7 @@ function setNowPanel(index,force=false){
 }
 function settleNowPanel(){
   clearTimeout(nowPanelTimer);
+  if(nowPagesTouching) return;
   const w=el('nowPages').clientWidth||1;
   setNowPanel(el('nowPages').scrollLeft>w*0.5?1:0);
 }
@@ -2438,6 +2440,9 @@ el('nowPages').addEventListener('scroll',()=>{
   nowPanelTimer=setTimeout(settleNowPanel,90);
 },{passive:true});
 el('nowPages').addEventListener('scrollend',settleNowPanel,{passive:true});
+// 手指还按在屏幕上时不切换封面/歌词模式，避免拖动途中整块布局变化造成“抽搐”。
+['touchstart','pointerdown'].forEach(ev=>el('nowPages').addEventListener(ev,()=>{nowPagesTouching=true;clearTimeout(nowTouchTimer);},{passive:true}));
+['touchend','touchcancel','pointerup','pointercancel'].forEach(ev=>el('nowPages').addEventListener(ev,()=>{nowPagesTouching=false;clearTimeout(nowTouchTimer);nowTouchTimer=setTimeout(settleNowPanel,120);},{passive:true}));
 ['touchstart','touchmove','pointerdown'].forEach(ev=>el('lyrics').addEventListener(ev,()=>{lyricTouchUntil=Date.now()+4000;},{passive:true}));
 el('lyrics').addEventListener('wheel',()=>{lyricTouchUntil=Date.now()+4000;},{passive:true});
 document.addEventListener('keydown',event=>{if(event.key==='Escape') closeNow();});
