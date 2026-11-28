@@ -25,8 +25,10 @@ final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate
         cfg.allowsInlineMediaPlayback = true
         cfg.mediaTypesRequiringUserActionForPlayback = []
         cfg.preferences.javaScriptCanOpenWindowsAutomatically = false
-        // 允许 WKWebView 在 App 进入后台后继续播放音频（私有键，自签包可用）
-        cfg.preferences.setValue(true, forKey: "_allowBackgroundMediaPlayback")
+        // 允许 WKWebView 在 App 进入后台后继续播放音频（私有键，先探测避免 KVC 崩溃）
+        if cfg.preferences.responds(to: NSSelectorFromString("set_allowBackgroundMediaPlayback:")) {
+            cfg.preferences.setValue(true, forKey: "_allowBackgroundMediaPlayback")
+        }
         let wv = WKWebView(frame: .zero, configuration: cfg)
         wv.navigationDelegate = self
         wv.uiDelegate = self
@@ -49,6 +51,10 @@ final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate
                                                name: UIApplication.didEnterBackgroundNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(configureAudioSession),
                                                name: UIApplication.willEnterForegroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(configureAudioSession),
+                                               name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(configureAudioSession),
+                                               name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
     @objc private func configureAudioSession() {
