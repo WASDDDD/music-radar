@@ -8,11 +8,9 @@ private let mrBg = Color(red: 0.035, green: 0.043, blue: 0.07)
 /// 灵动岛 + 锁屏 实时活动配置。
 struct MusicRadarLiveActivity: Widget {
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: MusicRadarAttributes.self) { context in
-            LockRow(state: context.state)
-                .padding(14)
-                .activityBackgroundTint(mrBg)
-                .activitySystemActionForegroundColor(.white)
+        ActivityConfiguration(for: MusicRadarAttributes.self) { _ in
+            // 锁屏不展示 Live Activity 卡片，只在灵动岛展示，避免与锁屏媒体卡重复。
+            EmptyView()
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
