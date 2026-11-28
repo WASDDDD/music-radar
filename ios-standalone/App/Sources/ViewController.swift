@@ -183,6 +183,7 @@ final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate
         if clear {
             center.nowPlayingInfo = nil
             center.playbackState = .stopped
+            LiveActivityManager.shared.end()
             return
         }
         var info: [String: Any] = [:]
@@ -199,6 +200,15 @@ final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate
         }
         center.nowPlayingInfo = info
         center.playbackState = playing ? .playing : .paused
+
+        // 灵动岛 / 锁屏实时活动
+        LiveActivityManager.shared.update(
+            title: title.isEmpty ? "音乐雷达" : title,
+            artist: artist,
+            playing: playing,
+            duration: duration,
+            elapsed: position
+        )
     }
 
     private func resolveCoverURL(_ raw: String) -> URL? {
