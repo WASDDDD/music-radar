@@ -15,7 +15,7 @@ final class Backend {
             guard let url = Bundle.main.url(forResource: "index", withExtension: "html") else { return nil }
             return try? Data(contentsOf: url)
         }
-        s.version = "3.0-ios"
+        s.version = "3.1-ios"
         port = try s.start()
         server = s
         started = true
