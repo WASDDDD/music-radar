@@ -204,6 +204,7 @@ public final class Playback {
         let file = cacheDir.appendingPathComponent("\(token).\(ext)")
         try data.write(to: file, options: .atomic)
         let info = AudioProbe.probe(file)
+        print("DBG download url=\(url) bytes=\(data.count) head=\(data.prefix(8).map { String(format: "%02x", $0) }.joined()) hasAudio=\(info.hasAudio) duration=\(info.duration) codec=\(info.codec) full=\(info.fullDecoded) tail=\(info.tailDecoded)")
         if !info.hasAudio || info.duration < 10 {
             try? FileManager.default.removeItem(at: file)
             throw MRPlaybackError("文件不是可播放歌曲", "INVALID_AUDIO")
