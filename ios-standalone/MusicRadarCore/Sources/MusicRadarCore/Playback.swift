@@ -3,11 +3,21 @@ import Foundation
 public final class Playback {
     public static let shared = Playback()
 
-    private let lock = NSLock()
+    // 递归锁：只在读写内存状态时短暂持有；网络下载与整曲解码都在锁外进行，
+    // 避免“一首歌核验卡住时，切歌/并发请求全部串行阻塞”。
+    private let lock = NSRecursiveLock()
     public var cacheDir: URL
-    private var manifest: [String: [String: Any]] = [:]
-    private var results: [String: [String: Any]] = [:]
-    private var media: [String: MRMediaFile] = [:]
+    private var manifest: [String: [String: Any]] = [:]   // canonKey -> entry
+    private var results: [String: [String: Any]] = [:]    // "source:id" -> result
+    private var media: [String: MRMediaFile] = [:]        // token -> media
+    private var mediaOrder: [String] = []                 // token 插入顺序（限制常驻数量，供淘汰判断“正在播放”）
+    private let mediaKeep = 32
+    private var inflight: [String: DispatchSemaphore] = [:] // "source:id" -> 进行中的等待信号
+    private var waiters: [String: Int] = [:]                // "source:id" -> 等待该请求的并发数（用于广播唤醒）
+    private var lastError: [String: MRPlaybackError] = [:]
+
+    /// 音频缓存总容量上限（超出后按修改时间淘汰最旧文件，正在播放的文件永不删除）。
+    public var cacheLimitBytes: Int64 = 1200 * 1024 * 1024
 
     private init() {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
@@ -21,12 +31,38 @@ public final class Playback {
         let f = cacheDir.appendingPathComponent("manifest.json")
         guard let data = try? Data(contentsOf: f),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: [String: Any]] else { return }
-        manifest = obj
+        // 迁移：历史条目存的是绝对路径，重装/重签名后容器 UUID 改变会全部失效；
+        // 统一改为只存文件名（相对 cacheDir），让缓存可跨重装复用。
+        var migrated = false
+        for (k, stored) in obj {
+            var e = stored
+            if let p = e["file"] as? String, p.contains("/") {
+                e["file"] = (p as NSString).lastPathComponent
+                migrated = true
+            }
+            manifest[k] = e
+        }
+        if migrated { saveManifest() }
     }
 
     private func saveManifest() {
         guard let data = try? JSONSerialization.data(withJSONObject: manifest) else { return }
         try? data.write(to: cacheDir.appendingPathComponent("manifest.json"), options: .atomic)
+    }
+
+    private func fileURL(_ entry: [String: Any]) -> URL? {
+        guard let name = entry["file"] as? String, !name.isEmpty else { return nil }
+        let url = cacheDir.appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// 记录 token 并限制常驻数量（调用时须已持有 lock）。
+    private func recordMedia(_ token: String) {
+        mediaOrder.append(token)
+        while mediaOrder.count > mediaKeep {
+            let old = mediaOrder.removeFirst()
+            if old != token { media.removeValue(forKey: old) }
+        }
     }
 
     // MARK: - Official sources
@@ -201,7 +237,8 @@ public final class Playback {
         guard data.count >= 4096 else { throw MRPlaybackError("上游返回空文件或错误内容", "INVALID_AUDIO") }
         let token = Self.randomToken()
         let ext = AudioProbe.fileExtension(for: data)
-        let file = cacheDir.appendingPathComponent("\(token).\(ext)")
+        let fileName = "\(token).\(ext)"
+        let file = cacheDir.appendingPathComponent(fileName)
         try data.write(to: file, options: .atomic)
         let info = AudioProbe.probe(file)
         if !info.hasAudio || info.duration < 10 {
@@ -226,16 +263,20 @@ public final class Playback {
             throw MRPlaybackError("音频尾段无法解码", "INVALID_AUDIO")
         }
         let mime = info.mime.hasPrefix("audio/") ? info.mime : "audio/mpeg"
-        media[token] = MRMediaFile(file: file, size: Int64(data.count), mime: mime)
         var entry: [String: Any] = [
-            "file": file.path, "size": data.count, "mime": mime,
+            "file": fileName, "size": data.count, "mime": mime,
             "duration": info.duration, "expectedDuration": meta.expectedDuration,
             "source": meta.source, "id": meta.id, "name": meta.name,
             "artist": meta.artist, "album": meta.album, "codec": info.codec,
             "substituted": meta.substituted
         ]
         let ck = TextUtil.canonKey(meta.name, meta.artist)
+        lock.lock()
+        media[token] = MRMediaFile(file: file, size: Int64(data.count), mime: mime)
+        recordMedia(token)
         if !ck.isEmpty { manifest[ck] = entry; saveManifest() }
+        lock.unlock()
+        evictIfNeeded()
         entry["verifiedFull"] = true
         entry["fullDecoded"] = true
         entry["tailDecoded"] = true
@@ -244,11 +285,13 @@ public final class Playback {
     }
 
     private func serveFromCache(_ entry: [String: Any]) -> [String: Any]? {
-        guard let path = entry["file"] as? String,
-              FileManager.default.fileExists(atPath: path) else { return nil }
+        guard let path = fileURL(entry) else { return nil }
         let token = Self.randomToken()
-        media[token] = MRMediaFile(file: URL(fileURLWithPath: path),
+        lock.lock()
+        media[token] = MRMediaFile(file: path,
                                    size: Int64(num(entry["size"])), mime: entry["mime"] as? String ?? "audio/mpeg")
+        recordMedia(token)
+        lock.unlock()
         var res = entry
         res["verifiedFull"] = true
         res["fullDecoded"] = true
@@ -256,6 +299,49 @@ public final class Playback {
         res["url"] = "/media/" + token
         res["cached"] = true
         return res
+    }
+
+    // MARK: - 缓存容量管理（LRU 近似：按修改时间淘汰最旧）
+
+    private func evictIfNeeded() {
+        lock.lock(); defer { lock.unlock() }
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(
+            at: cacheDir,
+            includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+        let active = Set(media.values.map { $0.file.standardizedFileURL.path })
+        var files: [(url: URL, size: Int64, date: Date)] = []
+        var total: Int64 = 0
+        for u in items where u.lastPathComponent != "manifest.json" {
+            let v = try? u.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+            let size = Int64(v?.fileSize ?? 0)
+            let date = v?.contentModificationDate ?? Date.distantPast
+            total += size
+            files.append((u, size, date))
+        }
+        guard total > cacheLimitBytes else { return }
+        files.sort { $0.date < $1.date }
+        var removedNames = Set<String>()
+        for f in files {
+            if total <= cacheLimitBytes { break }
+            if active.contains(f.url.standardizedFileURL.path) { continue }
+            if (try? fm.removeItem(at: f.url)) != nil {
+                total -= f.size
+                removedNames.insert(f.url.lastPathComponent)
+            }
+        }
+        if !removedNames.isEmpty {
+            var stale: [String] = []
+            for (k, e) in manifest {
+                if let name = e["file"] as? String, removedNames.contains(name) {
+                    stale.append(k)
+                }
+            }
+            for k in stale { manifest[k] = nil }
+            if !stale.isEmpty { saveManifest() }
+        }
     }
 
     // MARK: - Alternative sources
@@ -447,15 +533,69 @@ public final class Playback {
         return nil
     }
 
-    // MARK: - Resolve
+    // MARK: - Resolve（single-flight：同曲并发只做一次，不同曲并行）
 
     public func resolve(_ input: MRPlaybackInput) throws -> [String: Any] {
-        lock.lock(); defer { lock.unlock() }
         let key = "\(input.source):\(input.id)"
         let ck = (!input.name.isEmpty && !input.artist.isEmpty) ? TextUtil.canonKey(input.name, input.artist) : ""
-        if !ck.isEmpty, let entry = manifest[ck], let hit = serveFromCache(entry) { return hit }
-        if let cached = results[key] { return cached }
 
+        lock.lock()
+        if !ck.isEmpty, let entry = manifest[ck], let hit = serveFromCache(entry) {
+            lock.unlock()
+            return hit
+        }
+        if let cached = results[key] {
+            lock.unlock()
+            return cached
+        }
+        if let sem = inflight[key] {
+            // 同一首歌已有请求在算：登记为等待者，等它算完（广播唤醒所有等待者）。
+            waiters[key, default: 0] += 1
+            lock.unlock()
+            _ = sem.wait(timeout: .now() + 150)
+            lock.lock()
+            if let cached = results[key] { lock.unlock(); return cached }
+            let err = lastError[key] ?? MRPlaybackError("未找到可用音源", "RIGHTS_REQUIRED")
+            lock.unlock()
+            throw err
+        }
+        let sem = DispatchSemaphore(value: 0)
+        inflight[key] = sem
+        lock.unlock()
+
+        let finish: (Result<[String: Any], Error>) -> Void = { r in
+            self.lock.lock()
+            switch r {
+            case .success(let value):
+                self.results[key] = value
+                self.lastError[key] = nil
+            case .failure(let error):
+                self.results[key] = nil
+                self.lastError[key] = error as? MRPlaybackError ?? MRPlaybackError(String(describing: error), "UNAVAILABLE")
+            }
+            self.inflight[key] = nil
+            let n = self.waiters[key] ?? 0
+            self.waiters[key] = nil
+            self.lock.unlock()
+            // 广播：每个等待者一次信号量 +1
+            for _ in 0..<n { sem.signal() }
+        }
+
+        do {
+            let value = try computeResolve(input)
+            finish(.success(value))
+            return value
+        } catch let e as MRPlaybackError {
+            finish(.failure(e))
+            throw e
+        } catch {
+            finish(.failure(error))
+            throw error
+        }
+    }
+
+    /// 在锁外执行真正的取源/下载/核验（网络与解码都不持锁）。
+    private func computeResolve(_ input: MRPlaybackInput) throws -> [String: Any] {
         var meta: MRPlayMeta
         var failure: MRPlaybackError?
         do {
@@ -484,16 +624,13 @@ public final class Playback {
                 var one = meta
                 one.url = u
                 do {
-                    let value = try download(one)
-                    results[key] = value
-                    return value
+                    return try download(one)
                 } catch {
                     failure = error as? MRPlaybackError ?? MRPlaybackError(String(describing: error), "UNAVAILABLE")
                 }
             }
         }
         if let alt = alternative(meta, input) {
-            results[key] = alt
             return alt
         }
         if let f = failure { throw f }
@@ -503,6 +640,7 @@ public final class Playback {
 
     public func getMedia(_ token: String?) -> MRMediaFile? {
         guard let token = token, token.range(of: "^[a-f0-9]{36}$", options: .regularExpression) != nil else { return nil }
+        lock.lock(); defer { lock.unlock() }
         return media[token]
     }
 
