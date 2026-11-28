@@ -62,6 +62,7 @@ public enum Kuwo {
         guard let enc = KuwoCrypto.shared.encryptQuery(q) else { return nil }
         do {
             let r = try Http.get("http://mobi.kuwo.cn/mobi.s?f=kuwo&q=" + Http.urlEncode(enc), ua: UA, referer: "http://www.kuwo.cn/", timeoutMs: 16000)
+            print("DBG kuwo playUrl rid=\(rid) code=\(r.code) ok=\(r.ok) text=\(r.text.prefix(100))")
             if !r.ok { return nil }
             let text = r.text
             let ns = text as NSString
