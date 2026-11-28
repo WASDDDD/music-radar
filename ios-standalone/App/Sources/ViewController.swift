@@ -149,7 +149,7 @@ final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate
       if (window.MRHost) { return; }
       function send(o){ try { window.webkit.messageHandlers.mrHost.postMessage(o); } catch(e){} }
       window.MRHost = {
-        updateFull: function(t,a,p,c,d,pos,l){ send({op:'updateFull',title:t||'',artist:a||'',playing:!!p,cover:c||'',dur:d||0,pos:pos||0,liked:l?1:0}); },
+        updateFull: function(t,a,p,c,d,pos,l,qc,qi){ send({op:'updateFull',title:t||'',artist:a||'',playing:!!p,cover:c||'',dur:d||0,pos:pos||0,liked:l?1:0,qcount:qc||0,qindex:qi||0}); },
         update: function(t,a,p){ send({op:'update',title:t||'',artist:a||'',playing:!!p}); },
         idle: function(){ send({op:'idle'}); }
       };
@@ -170,17 +170,21 @@ final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate
         let cover = body["cover"] as? String ?? ""
         let dur = (body["dur"] as? NSNumber)?.doubleValue ?? 0   // 毫秒
         let pos = (body["pos"] as? NSNumber)?.doubleValue ?? 0   // 毫秒
+        let qcount = (body["qcount"] as? NSNumber)?.intValue ?? 0
+        let qindex = (body["qindex"] as? NSNumber)?.intValue ?? 0
         if title.isEmpty && artist.isEmpty && !playing {
             updateNowPlaying(title: "", artist: "", playing: false, cover: "",
                              duration: 0, position: 0, clear: true)
             return
         }
         updateNowPlaying(title: title, artist: artist, playing: playing, cover: cover,
-                         duration: dur / 1000.0, position: pos / 1000.0, clear: false)
+                         duration: dur / 1000.0, position: pos / 1000.0, clear: false,
+                         queueCount: qcount, queueIndex: qindex)
     }
 
     private func updateNowPlaying(title: String, artist: String, playing: Bool,
-                                  cover: String, duration: Double, position: Double, clear: Bool) {
+                                  cover: String, duration: Double, position: Double, clear: Bool,
+                                  queueCount: Int = 0, queueIndex: Int = 0) {
         let center = MPNowPlayingInfoCenter.default()
         if clear {
             center.nowPlayingInfo = nil
@@ -195,6 +199,10 @@ final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate
         info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = max(0, position)
         info[MPNowPlayingInfoPropertyPlaybackRate] = playing ? 1.0 : 0.0
         info[MPNowPlayingInfoPropertyIsLiveStream] = false
+        if queueCount > 0 {
+            info[MPNowPlayingInfoPropertyPlaybackQueueCount] = queueCount
+            info[MPNowPlayingInfoPropertyPlaybackQueueIndex] = max(0, queueIndex)
+        }
         if let art = artworkCache[cover] {
             info[MPMediaItemPropertyArtwork] = art
         } else if !cover.isEmpty {
