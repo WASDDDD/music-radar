@@ -8,6 +8,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Swift package tests
         run: |
+          set -o pipefail
           cd ios-standalone/MusicRadarCore
           swift test 2>&1 | tee /tmp/swift-test.log
       - name: Install XcodeGen

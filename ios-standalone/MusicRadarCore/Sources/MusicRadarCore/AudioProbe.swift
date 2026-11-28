@@ -12,8 +12,43 @@ public enum AudioProbe {
         public init() {}
     }
 
+
+    /// 用 AVAudioFile 解码（对 MP3/AAC 更稳），返回 (fullDecoded, tailDecoded, duration)
+    private static func audioFileDecode(_ url: URL) -> (Bool, Bool, Double)? {
+        guard let f = try? AVAudioFile(forReading: url) else { return nil }
+        let fmt = f.processingFormat
+        let sr = fmt.sampleRate
+        guard sr > 0, f.length > 0 else { return nil }
+        let total = f.length
+        guard let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: 8192) else { return nil }
+        var frames: AVAudioFramePosition = 0
+        do {
+            while true {
+                try f.read(into: buf)
+                if buf.frameLength == 0 { break }
+                frames += AVAudioFramePosition(buf.frameLength)
+            }
+        } catch { return nil }
+        let full = frames > 0
+        var tail = false
+        f.framePosition = AVAudioFramePosition(max(0, Double(total) - sr * 8))
+        if (try? f.read(into: buf)) != nil, buf.frameLength > 0 { tail = true }
+        return (full, tail, Double(total) / sr)
+    }
+
     public static func probe(_ url: URL) -> Result {
         var r = Result()
+        if let d = audioFileDecode(url) {
+            r.hasAudio = true
+            r.duration = d.2
+            r.fullDecoded = d.0
+            r.tailDecoded = d.1
+            let ext = url.pathExtension.lowercased()
+            if ext == "m4a" || ext == "aac" || ext == "mp4" { r.mime = "audio/mp4"; r.codec = "aac" }
+            else if ext == "flac" { r.mime = "audio/flac"; r.codec = "flac" }
+            else { r.mime = "audio/mpeg"; r.codec = "mp3" }
+            return r
+        }
         let asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
         let sem = DispatchSemaphore(value: 0)
         asset.loadValuesAsynchronously(forKeys: ["duration", "tracks"]) { sem.signal() }
