@@ -32,6 +32,8 @@ final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // 旧版本可能留下 Live Activity：启动时清掉，避免锁屏残留空卡片。
+        LiveActivityManager.shared.end()
         title = "音乐雷达"
         view.backgroundColor = UIColor(red: 0.035, green: 0.043, blue: 0.07, alpha: 1)
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "刷新", style: .plain, target: self, action: #selector(reload))
@@ -201,14 +203,7 @@ final class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate
         center.nowPlayingInfo = info
         center.playbackState = playing ? .playing : .paused
 
-        // 灵动岛 / 锁屏实时活动
-        LiveActivityManager.shared.update(
-            title: title.isEmpty ? "音乐雷达" : title,
-            artist: artist,
-            playing: playing,
-            duration: duration,
-            elapsed: position
-        )
+        // 灵动岛交给系统 Now Playing（MediaSession/MPNowPlayingInfoCenter）展示，避免自建 Live Activity 与系统卡片重复。
     }
 
     private func resolveCoverURL(_ raw: String) -> URL? {
